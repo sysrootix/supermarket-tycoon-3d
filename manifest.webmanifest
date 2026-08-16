@@ -1,0 +1,14 @@
+{
+  "name": "Мой Супермаркет 3D",
+  "short_name": "Супермаркет",
+  "description": "Симулятор супермаркета: ферма, производство, покупатели и касса в 3D.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0d1220",
+  "theme_color": "#0d1220",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

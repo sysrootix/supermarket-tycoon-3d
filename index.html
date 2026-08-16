@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Симулятор супермаркета: ферма, производство, покупатели и касса в 3D.">
+<title>Мой Супермаркет 3D</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="vig"></div>
+
+<!-- слой мировых подписей -->
+<div id="world"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="top">
+    <div class="pill money"><span class="ic">💰</span><span id="money">0</span></div>
+    <div class="pill"><span class="ic" id="sunIc">☀️</span><span id="clock">08:00</span><i class="sep"></i><span id="day">День 1</span></div>
+    <div class="pill rep"><span class="ic">⭐</span><span id="rep">100%</span></div>
+    <div class="pill lvl"><span class="ic">🏆</span><span id="lvl">Ур. 1</span><i class="xpbar"><b id="xpfill"></b></i></div>
+    <div class="pill hot" id="hotPill"><span class="ic">🔥</span><span id="hotName">—</span></div>
+    <div class="spacer"></div>
+    <button class="icobtn" id="soundBtn" title="Звук">🔊</button>
+    <button class="icobtn" id="menuBtn" title="Меню">⚙️</button>
+  </div>
+
+  <canvas id="minimap" width="204" height="132" class="card"></canvas>
+
+  <div id="questCard" class="card quest">
+    <div class="qtop"><span>🎯 Задание</span><span id="qreward">+0 ₽</span></div>
+    <div id="qtext">—</div>
+    <div class="qbar"><i id="qfill"></i></div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <div class="bottom">
+    <div id="stick" class="stick"><i id="knob"></i></div>
+    <div id="bag" class="card bag">
+      <div class="bagtop"><span>🎒 Рюкзак</span><span id="bagn">0/6</span></div>
+      <div id="bagitems" class="bagitems"></div>
+    </div>
+    <div class="actions">
+      <button class="fab shop" id="shopBtn"><span>🏪</span><em>Магазин</em></button>
+    </div>
+  </div>
+</div>
+
+<!-- Магазин -->
+<div id="sheet" class="sheet hidden">
+  <div class="sheetbar">
+    <div class="grab"></div>
+    <div class="sheettitle">🏪 Развитие магазина</div>
+    <div class="sheetmoney">💰 <span id="sheetMoney">0</span></div>
+    <button class="icobtn" id="sheetClose">✕</button>
+  </div>
+  <div id="tabs" class="tabs"></div>
+  <div id="cards" class="cards"></div>
+</div>
+
+<!-- Меню -->
+<div id="menu" class="modal hidden">
+  <div class="mcard">
+    <h2>Меню</h2>
+    <div class="stats" id="mstats"></div>
+    <div class="mrow">
+      <button id="helpBtn2" class="ghost">❓ Как играть</button>
+      <button id="camBtn" class="ghost">🎥 Сброс камеры</button>
+      <button id="qualBtn" class="ghost">🎚️ Качество</button>
+    </div>
+    <div class="mrow">
+      <button id="exportBtn" class="ghost">💾 Скачать бэкап</button>
+      <button id="importBtn" class="ghost">📂 Загрузить бэкап</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <button id="resetBtn" class="danger">🗑️ Сбросить прогресс</button>
+    <p class="hint" id="saveInfo">Прогресс сохраняется автоматически.</p>
+    <button id="menuClose">Продолжить</button>
+  </div>
+</div>
+
+<!-- Пока тебя не было -->
+<div id="away" class="modal hidden">
+  <div class="mcard">
+    <h2>🌙 Пока тебя не было</h2>
+    <p id="awayText"></p>
+    <button id="awayClose">Забрать</button>
+  </div>
+</div>
+
+<!-- Обучение -->
+<div id="tut" class="modal hidden">
+  <div class="mcard">
+    <h2 id="tutTitle">Добро пожаловать!</h2>
+    <p id="tutText"></p>
+    <button id="tutNext">Дальше</button>
+  </div>
+</div>
+
+<div id="loader"><div class="spin"></div><span>Загрузка магазина…</span></div>
+
+<script src="vendor/three.min.js"></script>
+<script src="data.js"></script>
+<script src="sim.js"></script>
+<script src="audio.js"></script>
+<script src="models.js"></script>
+<script src="scene.js"></script>
+<script src="ui.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
