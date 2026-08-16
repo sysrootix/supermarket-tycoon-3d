@@ -711,7 +711,7 @@ function buyBuilding(t) {
   G.money -= c;
   const b = newBuilding(t, slot);
   G.buildings.push(b);
-  rebuild(); save();
+  rebuild(); save(true);
   emit({ t: 'build', name: DEF[t].n });
   return true;
 }
@@ -734,7 +734,7 @@ function buyLevel(type) {
   G.money -= c;
   b.lvl = lvlOf(b) + 1;
   addXp(12);
-  save();
+  save(true);
   emit({ t: 'level-up', name: DEF[type].n, lvl: b.lvl, x: b.x + .5, y: b.y + .5 });
   return true;
 }
@@ -762,7 +762,7 @@ function sellBuilding(type) {
   }
   G.buildings.splice(G.buildings.indexOf(b), 1);
   G.money += back;
-  rebuild(); save();
+  rebuild(); save(true);
   emit({ t: 'sell', name: DEF[type].n, back, x: b.x + .5, y: b.y + .5 });
   return true;
 }
@@ -773,28 +773,28 @@ function buyShelf() {
   G.money -= c;
   const s = newShelf(G.shelves.length);
   G.shelves.push(s);
-  rebuild(); save();
+  rebuild(); save(true);
   emit({ t: 'build', name: 'Полка' });
   return true;
 }
 function buyReg() {
   const c = regCost();
   if (G.money < c || G.regs >= REG_SLOTS.length) return false;
-  G.money -= c; G.regs++; syncRegs(); assignRegs(); rebuild(); save();
+  G.money -= c; G.regs++; syncRegs(); assignRegs(); rebuild(); save(true);
   emit({ t: 'build', name: 'Касса' });
   return true;
 }
 function buyStaff(r) {
   const c = staffCost(r);
   if (G.money < c) return false;
-  G.money -= c; hire(r); save();
+  G.money -= c; hire(r); save(true);
   emit({ t: 'build', name: STAFF[r].n });
   return true;
 }
 function buyUpg(k) {
   const c = upgCost(k);
   if (G.money < c) return false;
-  G.money -= c; G.upg[k] = (G.upg[k] || 0) + 1; save();
+  G.money -= c; G.upg[k] = (G.upg[k] || 0) + 1; save(true);
   emit({ t: 'build', name: UPG[k].n + ' ур. ' + G.upg[k] });
   return true;
 }
@@ -882,7 +882,7 @@ function save(force) {
   lsSet(SAVE_KEYS[saveSlot % 2], str);
   saveSlot++;
   lastSaveAt = Date.now();
-  if (force || saveSlot % 4 === 0) idbSave(str);      // зеркало реже, оно асинхронное
+  if (force || saveSlot % 2 === 0) idbSave(str);      // зеркало: спасает, если localStorage вычистят
 }
 
 function parseSave(raw) {
