@@ -9,6 +9,8 @@
 <meta name="description" content="Симулятор супермаркета: ферма, производство, покупатели и касса в 3D.">
 <title>Мой Супермаркет 3D</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,6 +32,7 @@
     <div class="spacer"></div>
     <button class="icobtn" id="musicBtn" title="Музыка">🎵</button>
     <button class="icobtn" id="soundBtn" title="Звук">🔊</button>
+    <button class="icobtn" id="fsBtn" title="Во весь экран">⛶</button>
     <button class="icobtn" id="menuBtn" title="Меню">⚙️</button>
   </div>
 
@@ -76,8 +79,10 @@
       <button id="helpBtn2" class="ghost">❓ Как играть</button>
       <button id="camBtn" class="ghost">🎥 Сброс камеры</button>
       <button id="qualBtn" class="ghost">🎚️ Качество</button>
-      <button id="trackBtn" class="ghost">⏭️ Другая музыка</button>
+      <button id="orientBtn" class="ghost">📱 Экран</button>
     </div>
+    <button id="trackBtn" class="ghost">🎵 Выбрать музыку</button>
+    <div id="trackList" class="tracklist hidden"></div>
     <div class="mrow">
       <button id="exportBtn" class="ghost">💾 Скачать бэкап</button>
       <button id="importBtn" class="ghost">📂 Загрузить бэкап</button>

@@ -92,26 +92,26 @@ const MUSIC = (() => {
 
   /* 20 тем в духе игры: утро на ферме, суета зала, ночная смена. */
   const TRACKS = [
-    { n: 'Утро на грядке', bpm: 84, key: 0, ch: P.calm, sc: 'penta', lead: 'sine', dens: .5, sh: 1, sw: 0 },
-    { n: 'Свежий помидор', bpm: 96, key: 0, ch: P.pop, sc: 'penta', lead: 'triangle', dens: .62, sh: 1, sw: 0 },
-    { n: 'Молочный экспресс', bpm: 104, key: 2, ch: P.pop, sc: 'major', lead: 'sine', dens: .66, sh: 1, sw: 0 },
-    { n: 'Хлебная печь', bpm: 90, key: -3, ch: P.folk, sc: 'major', lead: 'triangle', dens: .55, sh: 1, sw: 0 },
-    { n: 'Кассовый ритм', bpm: 112, key: 5, ch: P.pop, sc: 'penta', lead: 'square', dens: .7, sh: 1, sw: 0 },
-    { n: 'Ярмарка', bpm: 118, key: 7, ch: P.folk, sc: 'major', lead: 'triangle', dens: .72, sh: 1, sw: 0 },
-    { n: 'Сонный загон', bpm: 74, key: -5, ch: P.calm, sc: 'penta', lead: 'sine', dens: .4, sh: 0, sw: 0 },
-    { n: 'Огуречный вальс', bpm: 100, key: 2, ch: P.waltz, sc: 'major', lead: 'triangle', dens: .58, sh: 0, sw: 1 },
-    { n: 'Гриль и дым', bpm: 106, key: -2, ch: P.minor, sc: 'minorP', lead: 'triangle', dens: .6, sh: 1, sw: 0 },
-    { n: 'Ночная смена', bpm: 78, key: -7, ch: P.minor, sc: 'dorian', lead: 'sine', dens: .42, sh: 0, sw: 0 },
-    { n: 'Тележки в ряд', bpm: 110, key: 3, ch: P.pop, sc: 'penta', lead: 'square', dens: .68, sh: 1, sw: 0 },
-    { n: 'Сырное соло', bpm: 92, key: 5, ch: P.jazzy, sc: 'dorian', lead: 'sine', dens: .55, sh: 1, sw: 1 },
-    { n: 'Яблоневый сад', bpm: 86, key: 7, ch: P.calm, sc: 'major', lead: 'sine', dens: .5, sh: 0, sw: 0 },
-    { n: 'Картофельный марш', bpm: 114, key: -4, ch: P.folk, sc: 'penta', lead: 'triangle', dens: .7, sh: 1, sw: 0 },
-    { n: 'Пиццерия', bpm: 108, key: 4, ch: P.jazzy, sc: 'major', lead: 'triangle', dens: .64, sh: 1, sw: 1 },
-    { n: 'Сладкий цех', bpm: 94, key: 9, ch: P.pop, sc: 'major', lead: 'sine', dens: .6, sh: 1, sw: 0 },
-    { n: 'Дождь над фермой', bpm: 80, key: -9, ch: P.minor, sc: 'minorP', lead: 'sine', dens: .45, sh: 0, sw: 0 },
-    { n: 'Час пик', bpm: 124, key: 0, ch: P.pop, sc: 'penta', lead: 'square', dens: .78, sh: 1, sw: 0 },
-    { n: 'Курочка Ряба', bpm: 98, key: 2, ch: P.folk, sc: 'penta', lead: 'triangle', dens: .6, sh: 1, sw: 1 },
-    { n: 'Закрываемся', bpm: 76, key: -12, ch: P.calm, sc: 'penta', lead: 'sine', dens: .38, sh: 0, sw: 0 },
+    { n: 'Утро на грядке', bpm: 96, key: 0, ch: P.calm, sc: 'penta', lead: 'sine', dens: .5, sh: 1, sw: 0, drums: 1 },
+    { n: 'Свежий помидор', bpm: 108, key: 0, ch: P.pop, sc: 'penta', lead: 'triangle', dens: .62, sh: 1, sw: 0, drums: 1 },
+    { n: 'Молочный экспресс', bpm: 116, key: 2, ch: P.pop, sc: 'major', lead: 'sine', dens: .66, sh: 1, sw: 0, drums: 1 },
+    { n: 'Хлебная печь', bpm: 102, key: -3, ch: P.folk, sc: 'major', lead: 'triangle', dens: .55, sh: 1, sw: 0, drums: 1 },
+    { n: 'Кассовый ритм', bpm: 124, key: 5, ch: P.pop, sc: 'penta', lead: 'square', dens: .7, sh: 1, sw: 0, drums: 2 },
+    { n: 'Ярмарка', bpm: 130, key: 7, ch: P.folk, sc: 'major', lead: 'triangle', dens: .72, sh: 1, sw: 0, drums: 2 },
+    { n: 'Сонный загон', bpm: 86, key: -5, ch: P.calm, sc: 'penta', lead: 'sine', dens: .4, sh: 0, sw: 0, drums: 0 },
+    { n: 'Огуречный вальс', bpm: 112, key: 2, ch: P.waltz, sc: 'major', lead: 'triangle', dens: .58, sh: 0, sw: 1, drums: 1 },
+    { n: 'Гриль и дым', bpm: 118, key: -2, ch: P.minor, sc: 'minorP', lead: 'triangle', dens: .6, sh: 1, sw: 0, drums: 2 },
+    { n: 'Ночная смена', bpm: 90, key: -7, ch: P.minor, sc: 'dorian', lead: 'sine', dens: .42, sh: 0, sw: 0, drums: 0 },
+    { n: 'Тележки в ряд', bpm: 122, key: 3, ch: P.pop, sc: 'penta', lead: 'square', dens: .68, sh: 1, sw: 0, drums: 2 },
+    { n: 'Сырное соло', bpm: 104, key: 5, ch: P.jazzy, sc: 'dorian', lead: 'sine', dens: .55, sh: 1, sw: 1, drums: 1 },
+    { n: 'Яблоневый сад', bpm: 98, key: 7, ch: P.calm, sc: 'major', lead: 'sine', dens: .5, sh: 0, sw: 0, drums: 1 },
+    { n: 'Картофельный марш', bpm: 126, key: -4, ch: P.folk, sc: 'penta', lead: 'triangle', dens: .7, sh: 1, sw: 0, drums: 2 },
+    { n: 'Пиццерия', bpm: 120, key: 4, ch: P.jazzy, sc: 'major', lead: 'triangle', dens: .64, sh: 1, sw: 1, drums: 2 },
+    { n: 'Сладкий цех', bpm: 106, key: 9, ch: P.pop, sc: 'major', lead: 'sine', dens: .6, sh: 1, sw: 0, drums: 1 },
+    { n: 'Дождь над фермой', bpm: 92, key: -9, ch: P.minor, sc: 'minorP', lead: 'sine', dens: .45, sh: 0, sw: 0, drums: 0 },
+    { n: 'Час пик', bpm: 136, key: 0, ch: P.pop, sc: 'penta', lead: 'square', dens: .78, sh: 1, sw: 0, drums: 2 },
+    { n: 'Курочка Ряба', bpm: 110, key: 2, ch: P.folk, sc: 'penta', lead: 'triangle', dens: .6, sh: 1, sw: 1, drums: 1 },
+    { n: 'Закрываемся', bpm: 88, key: -12, ch: P.calm, sc: 'penta', lead: 'sine', dens: .38, sh: 0, sw: 0, drums: 0 },
   ];
 
   let on = lsGet('mt3d_music') !== '0';
@@ -146,6 +146,28 @@ const MUSIC = (() => {
   const beatsPerBar = () => (cur.sw ? 6 : 8);        // 3/4 для вальса, 4/4 для остального
   const stepDur = () => 60 / cur.bpm / 2;
 
+  function kick(t, peak) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(48, t + .12);
+    g.gain.setValueAtTime(peak, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + .18);
+    o.connect(g); g.connect(musBus);
+    o.start(t); o.stop(t + .2);
+  }
+  function clap(t, peak) {
+    const n = AC.createBufferSource();
+    const len = (AC.sampleRate * .12) | 0, b = AC.createBuffer(1, len, AC.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    n.buffer = b;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = .8;
+    const g = AC.createGain(); env(g, t, .004, .11, peak);
+    n.connect(f); f.connect(g); g.connect(musBus); g.connect(reverb);
+    n.start(t);
+  }
+
   function playStep(i, t) {
     const bpb = beatsPerBar();
     const bar = Math.floor(i / bpb) % cur.ch.length;
@@ -154,7 +176,17 @@ const MUSIC = (() => {
     const k = cur.key;
     const strong = cur.sw ? beat === 0 : (beat === 0 || beat === 4);
 
-    if (strong) tone(semi(bass + k), t, beat ? .5 : .85, 'triangle', night ? .12 : .17);
+    // ритм-секция: она и делает музыку бодрой
+    if (!night && cur.drums) {
+      if (cur.sw ? beat === 0 : (beat === 0 || beat === 4)) kick(t, .5);
+      if (cur.sw ? beat === 3 : (beat === 2 || beat === 6)) clap(t, .16);
+      if (cur.drums > 1 && beat % 2 === 1) kick(t, .16);          // подпрыгивающий офф-бит
+    }
+
+    if (strong) tone(semi(bass + k), t, beat ? .5 : .85, 'triangle', night ? .12 : .2);
+    // шагающий бас между сильными долями — «живее»
+    if (!night && cur.drums && !cur.sw && (beat === 2 || beat === 6))
+      tone(semi(bass + k + 12), t, .28, 'triangle', .1);
     if (beat === 0) for (const n of notes) tone(semi(n + k), t, cur.sw ? 1.3 : 1.7, 'sine', .05, true);
     // вальсовое «раз-два-три»: лёгкие аккорды на 2 и 3 долю
     if (cur.sw && (beat === 2 || beat === 4)) for (const n of notes) tone(semi(n + k + 12), t, .3, 'sine', .028, true);
@@ -196,6 +228,12 @@ const MUSIC = (() => {
     }
     clearInterval(timer); timer = null;
   }
+  function goTo(i) {
+    idx = ((i % TRACKS.length) + TRACKS.length) % TRACKS.length;
+    cur = TRACKS[idx];
+    if (timer) { stop(.25); setTimeout(start, 320); } else if (onTrack) onTrack(cur.n);
+    return cur.n;
+  }
   function next(delta) {
     idx = (idx + (delta || 1) + TRACKS.length) % TRACKS.length;
     cur = TRACKS[idx];
@@ -207,7 +245,8 @@ const MUSIC = (() => {
     get on() { return on; },
     get track() { return cur.n; },
     get list() { return TRACKS.map(t => t.n); },
-    start, stop, next,
+    start, stop, next, goTo,
+    get index() { return idx; },
     onTrack(fn) { onTrack = fn; },
     toggle() {
       on = !on; lsSet('mt3d_music', on ? '1' : '0');

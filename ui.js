@@ -101,6 +101,27 @@ function updateFloats(dt) {
   }
 }
 
+/* ---------- полный экран и ориентация ---------- */
+const isStandalone = () =>
+  matchMedia('(display-mode: fullscreen)').matches ||
+  matchMedia('(display-mode: standalone)').matches ||
+  navigator.standalone === true;
+
+async function goFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } catch (e) { /* iOS Safari во вкладке не умеет — там спасает «на экран Домой» */ }
+}
+// при запуске с домашнего экрана сразу разворачиваем и кладём набок
+addEventListener('load', () => {
+  if (!isStandalone()) return;
+  const mode = lsGet('mt3d_orient') || 'landscape';
+  if (mode !== 'auto' && screen.orientation && screen.orientation.lock)
+    screen.orientation.lock(mode).catch(() => { });
+});
+
 /* ---------- мини-карта ----------
    Карта большая, поэтому сверху всегда видно, где что стоит и где ты сам. */
 const mm = $('minimap'), mmx = mm.getContext('2d');
@@ -398,6 +419,12 @@ function wireUI() {
   $('shopBtn').onclick = () => toggleSheet();
   $('sheetClose').onclick = () => toggleSheet(false);
   $('menuBtn').onclick = openMenu;
+  $('fsBtn').onclick = async () => {
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else { await goFullscreen(); applyOrient(); }
+    SFX.ui();
+  };
+  if (isStandalone()) $('fsBtn').style.display = 'none';   // в приложении уже полный экран
   $('menuClose').onclick = () => { $('menu').classList.add('hidden'); SFX.ui(); };
   $('camBtn').onclick = () => { cam.yaw = 0; cam.dist = .95; SFX.ui(); };
   $('awayClose').onclick = () => { $('away').classList.add('hidden'); SFX.coin(); };
@@ -427,8 +454,48 @@ function wireUI() {
   };
   musIcon();
   $('musicBtn').onclick = () => { MUSIC.toggle(); musIcon(); SFX.ui(); };
-  $('trackBtn').onclick = () => { MUSIC.next(); SFX.ui(); };
+  // список тем: можно выбрать конкретную
+  const renderTracks = () => {
+    const box = $('trackList');
+    box.innerHTML = '';
+    MUSIC.list.forEach((name, i) => {
+      const b = document.createElement('button');
+      b.textContent = name;
+      if (i === MUSIC.index) b.className = 'on';
+      b.onclick = () => { MUSIC.goTo(i); renderTracks(); SFX.ui(); };
+      box.appendChild(b);
+    });
+  };
+  $('trackBtn').onclick = () => {
+    const box = $('trackList');
+    box.classList.toggle('hidden');
+    if (!box.classList.contains('hidden')) renderTracks();
+    SFX.ui();
+  };
   MUSIC.onTrack(name => toast('🎵 ' + name));
+
+  /* Ориентация: PWA открывается горизонтально, но можно переключить. */
+  const ORIENT = ['auto', 'landscape', 'portrait'];
+  const ORIENT_RU = { auto: 'как повернёшь', landscape: 'горизонтально', portrait: 'вертикально' };
+  let oi = ORIENT.indexOf(lsGet('mt3d_orient') || 'landscape');
+  if (oi < 0) oi = 0;
+  const applyOrient = async () => {
+    const mode = ORIENT[oi];
+    lsSet('mt3d_orient', mode);
+    $('orientBtn').textContent = '📱 Экран: ' + ORIENT_RU[mode];
+    try {
+      if (!screen.orientation || !screen.orientation.lock) return;
+      if (mode === 'auto') screen.orientation.unlock();
+      else await screen.orientation.lock(mode);
+    } catch (e) { /* в обычной вкладке браузер блокировку не даёт — это нормально */ }
+  };
+  $('orientBtn').onclick = async () => {
+    oi = (oi + 1) % ORIENT.length;
+    // блокировка работает только в полноэкранном/установленном режиме
+    if (ORIENT[oi] !== 'auto' && !document.fullscreenElement && !isStandalone()) await goFullscreen();
+    applyOrient(); SFX.ui();
+  };
+  applyOrient();
   $('helpBtn2').onclick = () => { $('menu').classList.add('hidden'); startTutorial(true); };
   $('resetBtn').onclick = (e) => {
     const b = e.currentTarget;

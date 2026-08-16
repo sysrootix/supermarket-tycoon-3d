@@ -10,6 +10,23 @@ const clouds = [], doors = [];
 const cam = { yaw: 0, dist: .95, tx: START.x, tz: START.y };
 const V = new THREE.Vector3();
 
+/* Нарисованные текстуры подгружаются поверх процедурных.
+   Если файла нет или он не загрузился — остаётся процедурная шашка,
+   игра не ломается и продолжает работать офлайн. */
+const texLoader = new THREE.TextureLoader();
+function skinMaterial(mat, file, repeat, tint) {
+  texLoader.load('assets/' + file, (t) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    if (repeat) t.repeat.set(repeat[0], repeat[1]);
+    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    t.encoding = THREE.sRGBEncoding;
+    mat.map = t;
+    mat.color.setHex(tint || 0xffffff);   // лёгкий тон, чтобы картинка не слепила
+    mat.needsUpdate = true;
+  }, undefined, () => { });
+  return mat;
+}
+
 function checkerTex(a, b, n) {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const x = c.getContext('2d');
@@ -102,18 +119,23 @@ function buildWorld() {
   };
 
   // земля и парковка
-  plane(17, 10, 200, 200, 0x4f9a43, checkerTex('#55a447', '#4a903e', 100), -.02);
+  const ground = plane(17, 10, 200, 200, 0x4f9a43, checkerTex('#55a447', '#4a903e', 100), -.02);
+  skinMaterial(ground.material, 'grass.jpg', [50, 50]);
   plane(41, 11, 16, 24, 0x4a4f5a, null, .01);
   for (let i = 0; i < 6; i++) {
     const l = new THREE.Mesh(new THREE.PlaneGeometry(6, .18), new THREE.MeshBasicMaterial({ color: 0xf0e6c8 }));
     l.rotation.x = -Math.PI / 2; l.position.set(41, .02, 2 + i * 3.6); add(l);
   }
 
-  // зоны
-  plane(5, 6, 9, 11, 0x7a5636, checkerTex('#835c39', '#734f31', 9));       // огород — вспаханная земля
-  plane(5, 16.5, 9, 8, 0x8f9a5a, checkerTex('#96a25f', '#889255', 9));     // загон — трава-солома
-  plane(14, 10.5, 7, 20, 0xb9bfc9, checkerTex('#c2c8d1', '#b1b8c2', 14));  // цеховой двор — бетон
-  plane(25.5, 10.5, 14, 20, 0x93a3ba, checkerTex('#a4b3c8', '#8c9db5', 14)); // зал — плитка
+  // зоны: рисованные текстуры поверх процедурных
+  const field = plane(5, 6, 9, 11, 0x7a5636, checkerTex('#835c39', '#734f31', 9));      // огород
+  skinMaterial(field.material, 'soil.jpg', [3.5, 4]);
+  const pen = plane(5, 16.5, 9, 8, 0x8f9a5a, checkerTex('#96a25f', '#889255', 9));      // загон
+  skinMaterial(pen.material, 'grass.jpg', [4, 3.5], 0xd9d3a4);      // подсохшая трава загона
+  const yard = plane(14, 10.5, 7, 20, 0xb9bfc9, checkerTex('#c2c8d1', '#b1b8c2', 14));  // цеховой двор
+  skinMaterial(yard.material, 'concrete.jpg', [2, 5], 0xc4cbd6);
+  const floorZ = plane(25.5, 10.5, 14, 20, 0x93a3ba, checkerTex('#a4b3c8', '#8c9db5', 14)); // зал
+  skinMaterial(floorZ.material, 'floor.jpg', [3.5, 5], 0xd2dae6);
 
   // разметка в зале: широкие проходы между рядами
   for (const x of [20, 22, 24, 26, 28]) {
@@ -285,6 +307,7 @@ function buildWorld() {
   // небо: купол + солнце/луна + облака + звёзды
   const skyGeo = new THREE.SphereGeometry(150, 24, 16);
   skyMat = new THREE.MeshBasicMaterial({ color: 0x9fd0ff, side: THREE.BackSide, fog: false, depthWrite: false });
+  skinMaterial(skyMat, 'sky.jpg', [3, 1]);      // нарисованные облака; цвет продолжит красить небо по времени суток
   skyDome = new THREE.Mesh(skyGeo, skyMat); skyDome.position.set(17, 0, 10); add(skyDome);
 
   sunDisc = new THREE.Mesh(new THREE.SphereGeometry(3.2, 16, 12),
