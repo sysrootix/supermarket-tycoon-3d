@@ -121,8 +121,16 @@ async function boot() {
   }, 350);
   requestAnimationFrame(frame);
 
-  if (location.protocol.startsWith('http')) {
-    navigator.serviceWorker?.register('sw.js').catch(() => {});
+  if (location.protocol.startsWith('http') && navigator.serviceWorker) {
+    // когда приезжает новая версия, старый воркер ещё держит страницу —
+    // перезагружаемся один раз, чтобы игрок сразу увидел обновление
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloading) return;
+      reloading = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register('sw.js').catch(() => { });
   }
 }
 boot();
