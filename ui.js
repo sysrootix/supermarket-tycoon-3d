@@ -421,6 +421,14 @@ function wireUI() {
   $('qualBtn').onclick = () => { setQuality((quality + 1) % 3); qLabel(); SFX.ui(); };
   $('soundBtn').onclick = () => { $('soundBtn').textContent = SFX.toggle() ? '🔊' : '🔇'; };
   $('soundBtn').textContent = SFX.on ? '🔊' : '🔇';
+  const musIcon = () => {
+    $('musicBtn').textContent = '🎵';
+    $('musicBtn').style.opacity = MUSIC.on ? '1' : '.4';
+  };
+  musIcon();
+  $('musicBtn').onclick = () => { MUSIC.toggle(); musIcon(); SFX.ui(); };
+  $('trackBtn').onclick = () => { MUSIC.next(); SFX.ui(); };
+  MUSIC.onTrack(name => toast('🎵 ' + name));
   $('helpBtn2').onclick = () => { $('menu').classList.add('hidden'); startTutorial(true); };
   $('resetBtn').onclick = (e) => {
     const b = e.currentTarget;

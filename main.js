@@ -35,6 +35,8 @@ function handleEvents() {
         SFX.quest(); bumpMoney();
         break;
       case 'day':
+        MUSIC.next();                     // каждый игровой день — новая тема из 20
+
         if (ev.sal === 0) toast('🌅 День ' + G.day + ' начался');
         else if (ev.ok) toast('💸 Зарплата: −' + rub(ev.sal));
         else toast('⚠️ Нечем платить зарплату! Репутация −15', 'bad');
@@ -86,6 +88,10 @@ function frame(now) {
   updateHUD(dt);
   updateFloats(dt);
   if (tick % 3 === 0) drawMinimap();          // мини-карта не нуждается в 60 fps
+  if (tick % 60 === 0) {                      // ночью музыка становится тише и спокойнее
+    const p = G.dayT / DAY_LEN;
+    MUSIC.setNight(p < .24 || p > .8);
+  }
 
   // если кадры стабильно проседают — сами снижаем качество (после прогрева)
   if (dt > 0 && tick > 120) { fpsAcc += 1 / dt; fpsN++; fpsT += dt; }

@@ -78,7 +78,9 @@ function initScene(canvas) {
   scene.add(playerMesh);
   playerM = { g: playerMesh, csig: '' };
 
-  addEventListener('resize', resize); resize();
+  addEventListener('resize', resize);
+  addEventListener('orientationchange', () => setTimeout(resize, 250));   // поворот телефона
+  resize();
   return renderer;
 }
 function resize() {

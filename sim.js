@@ -7,7 +7,7 @@ const G = {
   buildings: [], shelves: [], staff: [], customers: [],
   regs: 1, upg: { bag: 0, boots: 0, fert: 0, register: 0, ads: 0, shelf: 0, crewBag: 0, crewFeet: 0, crewSkill: 0, payroll: 0 },
   quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value',
-  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, byItem: {} },
+  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, byItem: {} },
 };
 const player = { x: START.x, y: START.y, carry: [], act: 0, speed: 3.7, moving: 0, dir: 0 };
 const regs = [];
@@ -300,9 +300,10 @@ function syncRegs() { while (regs.length < G.regs) regs.push({ i: regs.length, q
 function updateRegs(dt) {
   for (const r of regs) {
     const w = regWorkerTile(r.i);
-    const manned = near(player, w.x, w.y, .9) ||
+    const byPlayer = near(player, w.x, w.y, .9);
+    const manned = byPlayer ||
       G.staff.some(s => s.role === 'cashier' && s.reg === r.i && near(s, w.x, w.y, .85));
-    r.manned = manned;
+    r.manned = manned; r.byPlayer = byPlayer;
     const c = r.q[0];
     if (!manned || !c || !c.atSpot) { r.t = 0; r.busy = 0; continue; }
     r.busy = 1;
@@ -314,10 +315,13 @@ function updateRegs(dt) {
       G.money += v;
       G.stats.sold++; G.stats.earned += v;
       G.stats.byItem[it] = (G.stats.byItem[it] || 0) + 1;
+      if (r.byPlayer) G.stats.personal++;
+      if (it === G.hot) G.stats.hot++;
       addXp(Math.max(1, Math.round(v / 12)));
       emit({ t: 'sale', x: c.x, y: c.y, v, item: it, vip: c.vip, hot: it === G.hot });
     }
     if (!c.basket.length) {
+      if (c.vip) G.stats.vip++;
       c.state = 'leave'; c.reg = null; c.happy = 1;
       r.q.shift(); r.t = 0; r.busy = 0;
       G.rep = Math.min(100, G.rep + 1);
