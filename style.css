@@ -214,6 +214,40 @@ body.touch .stick{display:block}
 .stats span{display:block;font-size:11px;color:var(--dim);font-weight:700}
 .stats b{font-size:16px;font-variant-numeric:tabular-nums}
 
+/* ---- титульный экран ----
+   Первый кадр игры: арт, название и кнопка «Играть».
+   Заодно первое касание разрешает браузеру звук. */
+#title{position:fixed;inset:0;z-index:55;display:flex;align-items:flex-end;justify-content:center;
+  padding:0 16px calc(7vh + var(--safe-b));
+  background:#0d1220 url('assets/loading.jpg') center top/cover no-repeat;
+  animation:fadein .5s ease both}
+#title.hidden{display:none}
+#title::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(13,18,32,0) 38%,rgba(13,18,32,.9) 88%)}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+#title.out{animation:fadeout .45s ease both}
+@keyframes fadeout{to{opacity:0;transform:scale(1.04)}}
+.titlebox{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:12px;
+  width:min(460px,100%);text-align:center}
+.titlebox h1{font-size:clamp(26px,6vw,40px);font-weight:800;letter-spacing:-.5px;
+  text-shadow:0 4px 18px rgba(0,0,0,.6)}
+.titlebox h1 b{color:var(--gold)}
+.titlebox p{color:#cfe0f7;font-weight:700;font-size:14px;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.titlebox button{border:0;border-radius:16px;padding:14px 20px;font-weight:800;font-size:15px;
+  cursor:pointer;color:#fff;background:rgba(255,255,255,.14);backdrop-filter:blur(8px)}
+.titlebox .play{width:100%;font-size:19px;padding:16px;
+  background:linear-gradient(160deg,#41d98a,#1fa464);box-shadow:0 14px 34px rgba(41,180,110,.45)}
+.titlebox button:active{transform:scale(.97)}
+.titlerow{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+@media (orientation:landscape) and (max-height:560px){
+  #title{padding-bottom:calc(4vh + var(--safe-b))}
+  .titlebox{width:min(520px,100%);gap:8px}
+  .titlebox h1{font-size:clamp(22px,4.4vh,32px)}
+  .titlebox p{font-size:12.5px}
+  .titlebox .play{padding:12px;font-size:17px}
+  .titlebox button{padding:10px 14px;font-size:13.5px}
+}
+
 #loader{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
   align-items:center;justify-content:flex-end;gap:14px;padding-bottom:12vh;
   color:#fff;font-weight:800;font-size:15px;text-shadow:0 2px 8px rgba(0,0,0,.55);

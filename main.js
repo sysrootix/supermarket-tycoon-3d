@@ -117,7 +117,7 @@ async function boot() {
   setTimeout(() => {
     document.getElementById('loader').classList.add('gone');
     setTimeout(() => document.getElementById('loader').remove(), 600);
-    if (offlineReport) showAway(offlineReport); else startTutorial(false);
+    showTitle();                      // титульный экран вместо мгновенного старта
   }, 350);
   requestAnimationFrame(frame);
 

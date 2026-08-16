@@ -535,6 +535,29 @@ function wireUI() {
   });
 }
 
+/* ---------- титульный экран ----------
+   Даёт игре «лицо», показывает арт и — главное — первое касание игрока,
+   после которого браузер разрешает музыку. */
+function showTitle() {
+  const t = $('title');
+  const started = G.stats.sold > 0 || G.day > 1 || G.buildings.length > 1;
+  $('titleSub').textContent = started
+    ? `День ${G.day} · ${fmt(G.money)} ₽ · уровень ${G.level}`
+    : 'Ферма · цеха · прилавок';
+  $('playBtn').textContent = started ? '▶ Продолжить' : '▶ Играть';
+  t.classList.remove('hidden', 'out');
+
+  const close = () => {
+    t.classList.add('out');
+    setTimeout(() => t.classList.add('hidden'), 450);
+    MUSIC.start();
+    if (offlineReport) showAway(offlineReport); else startTutorial(false);
+  };
+  $('playBtn').onclick = close;
+  $('titleTrailer').onclick = () => { $('trailer').classList.remove('hidden'); $('trailerVid').play().catch(() => { }); };
+  $('titleHelp').onclick = () => { close(); setTimeout(() => startTutorial(true), 500); };
+}
+
 /* Отчёт о работе смены, пока игра была закрыта. */
 function showAway(rep) {
   if (!rep) return;
