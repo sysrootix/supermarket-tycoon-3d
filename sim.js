@@ -954,9 +954,14 @@ function exportSave() {
 function importSave(text) {
   const d = parseSave(text);
   if (!d) return false;
-  lsSet(SAVE_KEYS[0], JSON.stringify(d));
-  lsSet(SAVE_KEYS[1], JSON.stringify(d));
-  idbSave(JSON.stringify(d));
+  // Импорт должен победить: иначе автосохранение при перезагрузке вернёт
+  // текущий прогресс, а сравнение по времени выберет местный, более свежий сейв.
+  saveOff = true;
+  d.ts = Date.now();
+  const str = JSON.stringify(d);
+  lsSet(SAVE_KEYS[0], str);
+  lsSet(SAVE_KEYS[1], str);
+  idbSave(str);
   return true;
 }
 

@@ -171,13 +171,18 @@ body.touch .stick{display:block}
 .grouphead{grid-column:1/-1;font-size:12px;font-weight:800;color:var(--dim);
   letter-spacing:.6px;text-transform:uppercase;padding:6px 2px 0}
 
-/* ---- модалки ---- */
+/* ---- модалки ----
+   Карточка всегда влезает в экран и прокручивается внутри себя,
+   клик по затемнению закрывает окно. */
 .modal{position:fixed;inset:0;z-index:30;background:rgba(6,9,16,.72);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;padding:18px}
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:grid;place-items:center;
+  padding:calc(12px + var(--safe-t)) 12px calc(12px + var(--safe-b))}
 .modal.hidden{display:none}
 .mcard{width:min(430px,100%);background:linear-gradient(180deg,#161c2d,#101524);
-  border:1px solid var(--stroke);border-radius:24px;padding:22px;
-  box-shadow:0 30px 80px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:12px}
+  border:1px solid var(--stroke);border-radius:24px;padding:20px;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:11px;
+  max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .mcard h2{font-size:21px;font-weight:800}
 .mcard p{color:var(--dim);font-weight:600;font-size:14px}
 .mcard p b{color:var(--txt)}
@@ -186,11 +191,15 @@ body.touch .stick{display:block}
 .mcard button:active{transform:scale(.98)}
 .mcard .ghost{background:rgba(255,255,255,.07);box-shadow:none;color:var(--txt)}
 .mcard .danger{background:linear-gradient(160deg,#ff7a7a,#d63b3b);box-shadow:0 10px 24px rgba(214,59,59,.3)}
-.mrow{display:flex;gap:10px}
-.mrow button{flex:1}
+.mrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.mrow button{width:100%}
 .hint{font-size:12px;color:var(--dim);text-align:center}
+.mcard.vid{width:min(900px,100%)}
+.mcard.vid video{width:100%;border-radius:14px;display:block;background:#000;
+  max-height:min(64vh,520px);object-fit:contain}
 /* список тем: выбираем, что играет */
-.tracklist{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:34vh;overflow-y:auto;
+.tracklist{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;
+  max-height:min(38vh,260px);overflow-y:auto;overscroll-behavior:contain;flex:none;
   background:rgba(255,255,255,.04);border:1px solid var(--stroke);border-radius:14px;padding:8px}
 .tracklist.hidden{display:none}
 .tracklist button{padding:8px 10px;font-size:12.5px;font-weight:700;text-align:left;
@@ -205,9 +214,15 @@ body.touch .stick{display:block}
 .stats span{display:block;font-size:11px;color:var(--dim);font-weight:700}
 .stats b{font-size:16px;font-variant-numeric:tabular-nums}
 
-#loader{position:fixed;inset:0;z-index:60;background:#0d1220;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:16px;color:var(--dim);font-weight:700;
+#loader{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;gap:14px;padding-bottom:12vh;
+  color:#fff;font-weight:800;font-size:15px;text-shadow:0 2px 8px rgba(0,0,0,.55);
+  background:#0d1220 url('assets/loading.jpg') center top/cover no-repeat;
   transition:opacity .5s ease}
+/* затемняем низ, чтобы надпись и спиннер читались поверх арта */
+#loader::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(13,18,32,0) 45%,rgba(13,18,32,.82) 100%)}
+#loader > *{position:relative;z-index:1}
 #loader.gone{opacity:0;pointer-events:none}
 .spin{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.12);
   border-top-color:var(--blue);animation:sp 1s linear infinite}
@@ -292,7 +307,7 @@ body.touch .stick{display:block}
 }
 
 /* очень низкий экран (iPhone SE лёжа) — прячем всё лишнее */
-@media (orientation:landscape) and (max-height:400px){
+@media (orientation:landscape) and (max-height:360px){
   #minimap{display:none}
   .quest{max-width:200px}
   .sheet{height:96vh}

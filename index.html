@@ -80,6 +80,7 @@
       <button id="camBtn" class="ghost">🎥 Сброс камеры</button>
       <button id="qualBtn" class="ghost">🎚️ Качество</button>
       <button id="orientBtn" class="ghost">📱 Экран</button>
+      <button id="trailerBtn" class="ghost">🎬 Трейлер</button>
     </div>
     <button id="trackBtn" class="ghost">🎵 Выбрать музыку</button>
     <div id="trackList" class="tracklist hidden"></div>
@@ -100,6 +101,16 @@
     <h2>🌙 Пока тебя не было</h2>
     <p id="awayText"></p>
     <button id="awayClose">Забрать</button>
+  </div>
+</div>
+
+<!-- Трейлер -->
+<div id="trailer" class="modal hidden">
+  <div class="mcard vid">
+    <h2>🎬 Мой Супермаркет 3D</h2>
+    <video id="trailerVid" playsinline loop controls preload="none"
+           poster="assets/trailer-poster.jpg" src="assets/trailer.mp4"></video>
+    <button id="trailerClose">Закрыть</button>
   </div>
 </div>
 

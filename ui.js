@@ -15,7 +15,7 @@ addEventListener('keydown', e => {
   const c = e.code;
   if (HOLD.includes(c)) { keys[c] = 1; e.preventDefault(); }
   if (c === 'KeyB' || c === 'Tab') { toggleSheet(); e.preventDefault(); }
-  if (c === 'Escape') { $('sheet').classList.add('hidden'); $('menu').classList.add('hidden'); $('away').classList.add('hidden'); }
+  if (c === 'Escape') { $('sheet').classList.add('hidden'); $('menu').classList.add('hidden'); $('away').classList.add('hidden'); $('trailer').classList.add('hidden'); }
   if (c === 'KeyQ') cam.yaw += .25;
   if (c === 'KeyE') cam.yaw -= .25;
   if (c === 'KeyM') $('menuBtn').click();
@@ -426,6 +426,17 @@ function wireUI() {
   };
   if (isStandalone()) $('fsBtn').style.display = 'none';   // в приложении уже полный экран
   $('menuClose').onclick = () => { $('menu').classList.add('hidden'); SFX.ui(); };
+  // клик по затемнению закрывает окно (в обучении — нет, там надо дочитать)
+  for (const id of ['menu', 'away']) {
+    $(id).addEventListener('pointerdown', (e) => {
+      if (e.target === $(id)) { $(id).classList.add('hidden'); SFX.ui(); }
+    });
+  }
+  // и лист магазина тоже закрывается тапом мимо
+  addEventListener('pointerdown', (e) => {
+    if (!sheetOpen) return;
+    if (!$('sheet').contains(e.target) && !$('shopBtn').contains(e.target)) toggleSheet(false);
+  }, true);
   $('camBtn').onclick = () => { cam.yaw = 0; cam.dist = .95; SFX.ui(); };
   $('awayClose').onclick = () => { $('away').classList.add('hidden'); SFX.coin(); };
   // ручной бэкап: файл можно унести на другое устройство или в другой браузер
@@ -436,7 +447,10 @@ function wireUI() {
     if (!f) return;
     const r = new FileReader();
     r.onload = () => {
-      if (importSave(String(r.result))) { toast('📂 Бэкап загружен, перезапуск…', 'good'); setTimeout(() => location.reload(), 700); }
+      if (importSave(String(r.result))) {
+        toast('📂 Бэкап загружен, перезапуск…', 'good');
+        setTimeout(() => location.reload(), 900);   // ждём, пока допишется зеркало в IndexedDB
+      }
       else toast('⚠️ Файл не похож на сохранение', 'bad');
     };
     r.readAsText(f);
@@ -466,6 +480,10 @@ function wireUI() {
       box.appendChild(b);
     });
   };
+  $('trailerBtn').onclick = () => { $('trailer').classList.remove('hidden'); $('trailerVid').play().catch(() => { }); SFX.ui(); };
+  const closeTrailer = () => { $('trailerVid').pause(); $('trailer').classList.add('hidden'); SFX.ui(); };
+  $('trailerClose').onclick = closeTrailer;
+  $('trailer').addEventListener('pointerdown', (e) => { if (e.target === $('trailer')) closeTrailer(); });
   $('trackBtn').onclick = () => {
     const box = $('trackList');
     box.classList.toggle('hidden');
