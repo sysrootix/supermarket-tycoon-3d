@@ -64,6 +64,36 @@ function handleEvents() {
       case 'hot':
         toast('🔥 Товар дня: ' + ITEMS[ev.item].e + ' ' + ITEMS[ev.item].n + ' — цена ×' + HOT_MUL);
         break;
+      case 'order':
+        toast(`🚚 Заказ: ${ITEMS[ev.item].e} ×${ev.need} за ${rub(ev.pay)}`, 'good');
+        SFX.quest();
+        break;
+      case 'order-done':
+        toast(`🚚 Заказ выполнен! +${rub(ev.pay)}`, 'good');
+        floatText(player.x, player.y, '+' + rub(ev.pay), '#6ee7a0');
+        spawnConfetti(player.x, player.y);
+        SFX.quest(); bumpMoney();
+        break;
+      case 'order-fail':
+        toast('🚚 Заказ просрочен', 'bad');
+        SFX.error();
+        break;
+      case 'stolen':
+        toast(`🥷 Вор унёс товар на ${rub(ev.value)}`, 'bad');
+        floatText(ev.x, ev.y, '🥷 украли', '#ff6b6b');
+        SFX.angry();
+        break;
+      case 'caught':
+        toast('💪 Охранник поймал вора', 'good');
+        floatText(ev.x, ev.y, '💪 попался', '#6ee7a0');
+        SFX.cash();
+        break;
+      case 'brand':
+        applyBrand();
+        break;
+      case 'supply':
+        toast(`🚚 Привезли ${ITEMS[ev.item].e} ×${ev.n}`, 'good');
+        break;
       case 'spoil':
         floatText(ev.x, ev.y, '🤢 испортилось', '#ff6b6b');
         SFX.error();
@@ -121,6 +151,7 @@ async function boot() {
   initScene(document.getElementById('cv'));
   wireUI();
   syncWorld();
+  applyBrand();
   renderFrame(0, 0);
   setTimeout(() => {
     document.getElementById('loader').classList.add('gone');

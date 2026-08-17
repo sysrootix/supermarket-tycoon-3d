@@ -6,6 +6,7 @@ const meshes = { b: new Map(), sh: new Map(), reg: new Map(), cust: new Map(), s
 let playerMesh, playerM, flyers = [], lamps = [], glassMats = [], barTpl;
 const ghosts = { field: [], pen: [], work: [], shelf: [], reg: [] };
 let skyDome, skyMat, sunDisc, starMat;
+let wallMatRef, trimMatRef, floorMatRef, signRef, signBoardRef;
 const clouds = [], doors = [];
 const cam = { yaw: 0, dist: .95, tx: START.x, tz: START.y };
 const V = new THREE.Vector3();
@@ -136,6 +137,7 @@ function buildWorld() {
   skinMaterial(yard.material, 'concrete.jpg', [2, 5], 0xc4cbd6);
   const floorZ = plane(25.5, 10.5, 14, 20, 0x93a3ba, checkerTex('#a4b3c8', '#8c9db5', 14)); // зал
   skinMaterial(floorZ.material, 'floor.jpg', [3.5, 5], 0xd2dae6);
+  floorMatRef = floorZ.material;
 
   // разметка в зале: широкие проходы между рядами
   for (const x of [20, 22, 24, 26, 28]) {
@@ -149,6 +151,7 @@ function buildWorld() {
 
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xdbe3ee, roughness: .8 });
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x2b6cff, roughness: .5 });
+  wallMatRef = wallMat; trimMatRef = trimMat;
   const yardMat = new THREE.MeshStandardMaterial({ color: 0xb0b8c4, roughness: .9 });
   const wall = (x, z, w, d, h, m, trim) => {
     const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m || wallMat);
@@ -187,8 +190,9 @@ function buildWorld() {
   const board = new THREE.Mesh(new THREE.BoxGeometry(10, 1.6, .35),
     new THREE.MeshStandardMaterial({ color: 0x1d2432, roughness: .6 }));
   board.position.set(25.5, 4.3, .5); board.castShadow = true; add(board);
-  const sign = makeSign('МОЙ СУПЕРМАРКЕТ', 9.4, 1.5, null, '#ffd75e', 82);
+  const sign = makeSign(G.brand.name, 9.4, 1.5, null, '#ffd75e', 82);
   sign.position.set(25.5, 4.3, .78); add(sign);
+  signRef = sign; signBoardRef = board;
   const sign2 = makeSign('ФЕРМА · ЦЕХ · ПРИЛАВОК · 24/7', 8, .8, null, '#8fd0ff', 58);
   sign2.position.set(25.5, 3.45, .78); add(sign2);
 
@@ -887,6 +891,22 @@ function renderFrame(t, dt) {
   renderer.render(scene, camera);
 }
 function ease(x) { return 1 - Math.pow(1 - x, 3); }
+
+/* Применяем оформление: цвет стен, бордюра, пола и название на вывеске. */
+function applyBrand() {
+  const b = G.brand || {};
+  if (wallMatRef) wallMatRef.color.setHex(BRANDS.wall[b.wall || 0].c);
+  if (trimMatRef) trimMatRef.color.setHex(BRANDS.trim[b.trim || 0].c);
+  if (floorMatRef) floorMatRef.color.setHex(BRANDS.floor[b.floor || 0].c);
+  if (signRef && signRef.userData.txt !== b.name) {
+    const old = signRef;
+    signRef = makeSign(b.name || 'МОЙ СУПЕРМАРКЕТ', 9.4, 1.5, null, '#ffd75e', 82);
+    signRef.position.copy(old.position);
+    signRef.userData.txt = b.name;
+    scene.remove(old); old.material.dispose();
+    scene.add(signRef);
+  }
+}
 
 /* мировая точка в экранные координаты (для HTML-подписей) */
 function project(x, y, z) {

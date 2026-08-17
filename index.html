@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 <canvas id="cv"></canvas>
@@ -29,7 +29,6 @@
     <div class="pill rep"><span class="ic">⭐</span><span id="rep">100%</span></div>
     <div class="pill lvl"><span class="ic">🏆</span><span id="lvl">Ур. 1</span><i class="xpbar"><b id="xpfill"></b></i></div>
     <div class="pill hot" id="hotPill"><span class="ic">🔥</span><span id="hotName">—</span></div>
-    <div class="pill dem" id="demPill"><span id="demName">—</span></div>
     <div class="spacer"></div>
     <button class="icobtn" id="musicBtn" title="Музыка">🎵</button>
     <button class="icobtn" id="soundBtn" title="Звук">🔊</button>
@@ -38,6 +37,12 @@
   </div>
 
   <canvas id="minimap" width="204" height="132" class="card"></canvas>
+
+  <div id="orderCard" class="card order hidden">
+    <div class="qtop"><span>🚚 Заказ · <i id="orderTime">—</i></span><span id="orderPay">+0 ₽</span></div>
+    <div id="orderText">—</div>
+    <div class="qbar"><i id="orderFill"></i></div>
+  </div>
 
   <div id="questCard" class="card quest">
     <div class="qtop"><span>🎯 Задание</span><span id="qreward">+0 ₽</span></div>
@@ -152,13 +157,13 @@
   </div>
 </div>
 
-<script src="vendor/three.min.js?v=12"></script>
-<script src="data.js?v=12"></script>
-<script src="sim.js?v=12"></script>
-<script src="audio.js?v=12"></script>
-<script src="models.js?v=12"></script>
-<script src="scene.js?v=12"></script>
-<script src="ui.js?v=12"></script>
-<script src="main.js?v=12"></script>
+<script src="vendor/three.min.js?v=13"></script>
+<script src="data.js?v=13"></script>
+<script src="sim.js?v=13"></script>
+<script src="audio.js?v=13"></script>
+<script src="models.js?v=13"></script>
+<script src="scene.js?v=13"></script>
+<script src="ui.js?v=13"></script>
+<script src="main.js?v=13"></script>
 </body>
 </html>

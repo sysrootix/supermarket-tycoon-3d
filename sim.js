@@ -6,8 +6,9 @@ const G = {
   money: 250, day: 1, dayT: DAY_LEN * 0.35, rep: 100,
   buildings: [], shelves: [], staff: [], customers: [],
   regs: 1, upg: { bag: 0, boots: 0, fert: 0, register: 0, ads: 0, shelf: 0, crewBag: 0, crewFeet: 0, crewSkill: 0, payroll: 0 },
-  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value', price: {},
-  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, spoiled: 0, byItem: {}, daily: [] },
+  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value', price: {}, order: null,
+  brand: { name: 'МОЙ СУПЕРМАРКЕТ', wall: 0, trim: 0, floor: 0 },
+  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, spoiled: 0, orders: 0, stolen: 0, byItem: {}, daily: [] },
 };
 const player = { x: START.x, y: START.y, carry: [], act: 0, speed: 3.7, moving: 0, dir: 0 };
 const regs = [];
@@ -352,6 +353,7 @@ function updateRegs(dt) {
       G.stats.byItem[it] = (G.stats.byItem[it] || 0) + 1;
       if (r.byPlayer) G.stats.personal++;
       if (it === G.hot) G.stats.hot++;
+      orderProgress(it);
       addXp(Math.max(1, Math.round(v / 12)));
       emit({ t: 'sale', x: c.x, y: c.y, v, item: it, vip: c.vip, hot: it === G.hot });
     }
@@ -389,6 +391,8 @@ function spawnCustomer() {
     state: 'arrive', patience: (vip ? 34 : 40) + Math.random() * 25, maxPat: 65, atSpot: false,
     reg: null, takeT: 0, moving: 0, dir: Math.PI, id: Math.random(),
     litter: Math.random() < .45,
+    // вор: без охраны иногда уносит корзину мимо кассы
+    thief: Math.random() < .06 && G.day > 2,
   });
 }
 function joinQueue(c) {
@@ -454,6 +458,22 @@ function updateCustomer(c, dt) {
     }
   } else if (c.state === 'queue0') {
     if (!c.basket.length) { c.state = 'leave'; return; }
+    // вор идёт мимо кассы к выходу, если охранник не поймал
+    if (c.thief) {
+      const guard = G.staff.find(g => g.role === 'guard');
+      if (guard && Math.hypot(guard.x - c.x, guard.y - c.y) < 7) {
+        c.thief = false;
+        emit({ t: 'caught', x: c.x, y: c.y });
+      } else {
+        const value = c.basket.reduce((a, it) => a + itemPrice(it), 0);
+        G.stats.stolen += c.basket.length;
+        c.basket.length = 0;
+        c.state = 'leave'; c.happy = 0;
+        G.rep = Math.max(0, G.rep - 1);
+        emit({ t: 'stolen', x: c.x, y: c.y, value });
+        return;
+      }
+    }
     if (!joinQueue(c)) walkTo(c, 29, 10, 0, dt);
   } else if (c.state === 'queue') {
     const r = regs[c.reg];
@@ -610,6 +630,17 @@ function jobValue(b, pol) {
 function releaseSrc(s) { if (s.src && s.src.res === s) s.src.res = null; s.src = null; }
 
 function updateStaff(s, dt) {
+  if (s.role === 'guard') {
+    // держится рядом с самым «подозрительным» покупателем, иначе патрулирует зал
+    const t = G.customers.find(c => c.thief && c.basket.length) ||
+      G.customers.find(c => c.state === 'shop' && c.basket.length);
+    if (t) { walkTo(s, Math.floor(t.x), Math.floor(t.y), 1, dt); return; }
+    s.pt = (s.pt || 0) + dt;
+    const spots = [[22, 4], [28, 8], [22, 14], [28, 17], [30, 11]];
+    const p = spots[Math.floor(s.pt / 6) % spots.length];
+    walkTo(s, p[0], p[1], 0, dt);
+    return;
+  }
   if (s.role === 'cleaner') {
     let best = null, bd = 1e9;
     for (const tr of G.trash) {
@@ -759,6 +790,50 @@ const freshness = (sh) => {
   return life ? Math.max(0, 1 - sh.age / life) : 1;
 };
 
+/* ---------- заказы ----------
+   Раз в несколько минут приходит контракт на то, что магазин умеет продавать.
+   Выполнил вовремя — крупная премия, просрочил — просто исчезает. */
+function newOrder() {
+  const pool = [...new Set(G.buildings.map(b => DEF[b.t].out))].filter(i => ITEMS[i]);
+  if (pool.length < 1 || !G.shelves.length) return;
+  const item = pool[(Math.random() * pool.length) | 0];
+  const base = Math.max(4, Math.round(6 + G.level * 1.2));
+  const need = base + ((Math.random() * 4) | 0);
+  G.order = {
+    item, need, done: 0,
+    left: ORDER_TIME,
+    pay: Math.round(itemPrice(item) * need * 1.9 + 400),
+  };
+  emit({ t: 'order', item, need, pay: G.order.pay });
+}
+function updateOrder(dt) {
+  if (!G.order) {
+    G.orderCd = (G.orderCd || 60) - dt;
+    if (G.orderCd <= 0) { G.orderCd = 150 + Math.random() * 120; newOrder(); }
+    return;
+  }
+  G.order.left -= dt;
+  if (G.order.left <= 0) {
+    emit({ t: 'order-fail', item: G.order.item });
+    G.order = null;
+    G.orderCd = 90;
+  }
+}
+/* Каждая продажа приближает выполнение заказа. */
+function orderProgress(item) {
+  const o = G.order;
+  if (!o || o.item !== item) return;
+  o.done++;
+  if (o.done < o.need) return;
+  G.money += o.pay;
+  G.stats.orders++;
+  addXp(40);
+  emit({ t: 'order-done', item, pay: o.pay });
+  G.order = null;
+  G.orderCd = 120;
+  save(true);
+}
+
 /* ---------- что не работает ----------
    На карте 34x22 глазами всё не отследить: собираем список проблем,
    по каждой можно сразу прыгнуть к объекту. */
@@ -846,6 +921,38 @@ function checkQuest() {
     emit({ t: 'quest', r: q.r, d: q.d });
     save();
   }
+}
+
+/* Оформление: сохраняем и просим сцену перекраситься. */
+function setBrand(key, val) {
+  G.brand[key] = val;
+  if (key === 'name') G.brand.name = String(val).slice(0, 22).toUpperCase() || 'МОЙ СУПЕРМАРКЕТ';
+  save(true);
+  emit({ t: 'brand' });
+}
+
+/* ---------- поставщики ----------
+   Не производишь сам — купи партию. Дороже, чем растить, зато сразу и без ожидания. */
+const SUPPLY_LOT = 5;
+const supplyCost = (item) => Math.round(ITEMS[item].price * SUPPLY_LOT * 1.45 + 40);
+/* Куда сгрузить партию: сначала цех, который ждёт это сырьё, потом полка. */
+function buySupply(item) {
+  const c = supplyCost(item);
+  if (G.money < c) return false;
+  let left = SUPPLY_LOT;
+  for (const b of G.buildings) {
+    while (left && acceptsInput(b, item)) { b.stock[item] = (b.stock[item] || 0) + 1; left--; }
+  }
+  for (const sh of G.shelves) {
+    if (!left) break;
+    if (sh.item && sh.item !== item) continue;
+    while (left && sh.n < shelfCap(sh)) { sh.item = item; sh.n++; sh.age = 0; left--; }
+  }
+  if (left === SUPPLY_LOT) return false;         // некуда сгружать — не берём деньги
+  G.money -= c;
+  save(true);
+  emit({ t: 'supply', item, n: SUPPLY_LOT - left, cost: c });
+  return true;
 }
 
 /* ---------- покупки ---------- */
@@ -1021,7 +1128,7 @@ function snapshot() {
     money: G.money, day: G.day, dayT: G.dayT, rep: G.rep, regs: G.regs,
     upg: G.upg, quest: G.quest, stats: G.stats,
     level: G.level, xp: G.xp, hot: G.hot, trash: G.trash,
-    policy: G.policy, sp: G.staff.map(s => s.policy || null), price: G.price,
+    policy: G.policy, sp: G.staff.map(s => s.policy || null), price: G.price, order: G.order, brand: G.brand,
     b: G.buildings.map(b => ({ t: b.t, s: b.slot, st: b.stock, o: b.out, l: b.lvl || 1 })),
     sh: G.shelves.map(s => ({ s: s.slot, i: s.item, n: s.n })),
     st: G.staff.map(s => s.role),
@@ -1067,7 +1174,8 @@ function applySave(d) {
       upg: Object.assign({ bag: 0, boots: 0, fert: 0, register: 0, ads: 0, shelf: 0, crewBag: 0, crewFeet: 0, crewSkill: 0, payroll: 0 }, d.upg),
       quest: d.quest, stats: Object.assign(G.stats, d.stats),
       level: d.level || 1, xp: d.xp || 0, hot: d.hot || 'tomato', trash: d.trash || [],
-      policy: d.policy || 'value', price: d.price || {},
+      policy: d.policy || 'value', price: d.price || {}, order: d.order || null,
+      brand: Object.assign({ name: 'МОЙ СУПЕРМАРКЕТ', wall: 0, trim: 0, floor: 0 }, d.brand),
     });
     // Старые сейвы хранят слоты прежней планировки — раскладываем заново по зонам.
     G.buildings = [];
@@ -1135,6 +1243,7 @@ function simUpdate(dt, input) {
   if (spawnT <= 0) { spawnT = 3.2 + Math.random() * 2.5; spawnCustomer(); }
 
   updateSpoilage(dt);
+  updateOrder(dt);
   for (const c of G.customers) updateCustomer(c, dt);
   G.customers = G.customers.filter(c => !c.dead);
   updateRegs(dt);
