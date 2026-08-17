@@ -257,12 +257,14 @@ function acceptsInput(b, item) {
 const isScarce = (b, item) => DEF[b.t].in && DEF[b.t].in[item] && portions(b, item) <= minPortions(b);
 
 /* ---------- игрок ---------- */
-function movePlayer(dx, dy, dt) {
+function movePlayer(dx, dy, dt, look) {
   player.speed = playerSpeed();
+  // от первого лица направление взгляда задаёт камера, а не последний шаг
+  if (look != null) player.dir = look;
   const l = Math.hypot(dx, dy);
   if (!l) { player.moving = 0; return; }
   const s = player.speed * dt;
-  player.dir = Math.atan2(dx, dy);
+  if (look == null) player.dir = Math.atan2(dx, dy);
   player.moving = Math.min(1, l);
   slide(player, dx / l * s, dy / l * s);
 }
@@ -1274,7 +1276,7 @@ function simUpdate(dt, input) {
   G.dayT += dt;
   if (G.dayT >= DAY_LEN) { G.dayT -= DAY_LEN; endDay(); }
 
-  movePlayer(input.x, input.y, dt);
+  movePlayer(input.x, input.y, dt, input.look);
   playerInteract(dt);
   for (const b of G.buildings) updateBuilding(b, dt);
   for (const s of G.staff) { s.speed = staffSpeed(); updateStaff(s, dt); }

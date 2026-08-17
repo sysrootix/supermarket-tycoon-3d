@@ -628,6 +628,36 @@ function makeFridgeDoor() {                  // морозильная каме�
   return g;
 }
 
+function makeBench() {                       // скамейка
+  const g = new THREE.Group();
+  for (const x of [-.55, .55]) {
+    g.add(at(box(.12, .42, .5, 0x6b7484), x, .21, 0));
+    g.add(at(box(.12, .5, .1, 0x6b7484), x, .66, -.2));
+  }
+  for (let i = 0; i < 3; i++) g.add(at(box(1.4, .07, .14, 0xb98a52), 0, .45, -.16 + i * .16));
+  for (let i = 0; i < 2; i++) g.add(at(box(1.4, .14, .07, 0xb98a52), 0, .66 + i * .18, -.24));
+  return g;
+}
+function makeFlowerbed() {                   // клумба
+  const g = new THREE.Group();
+  g.add(at(cyl(.62, .68, .28, 0xa9744a, 12), 0, .14, 0));
+  g.add(at(cyl(.54, .54, .06, 0x6b4a2c, 12), 0, .29, 0));
+  const cols = [0xff6b6b, 0xffd166, 0xf2a2c0, 0xc77dff, 0xffffff];
+  for (let i = 0; i < 9; i++) {
+    const a = i / 9 * 6.28, r = .12 + Math.random() * .3;
+    g.add(at(sph(.055, 0x4faf50), Math.cos(a) * r, .34, Math.sin(a) * r));
+    g.add(at(sph(.085, cols[i % cols.length], { roughness: .5 }), Math.cos(a) * r, .44, Math.sin(a) * r));
+  }
+  return g;
+}
+function makeBin() {                         // урна
+  const g = new THREE.Group();
+  g.add(at(cyl(.24, .2, .62, 0x3f4a5c, 10), 0, .31, 0));
+  g.add(at(cyl(.27, .27, .05, 0x6ee7a0, 10), 0, .63, 0));
+  g.add(at(cyl(.12, .12, .02, 0x1d2432, 8), 0, .66, 0));
+  return g;
+}
+
 /* Текстовая табличка (вывеска, ценники). Текстуры кешируются по содержимому —
    ценники на полках меняются часто, каждый раз рисовать холст дорого. */
 const signCache = new Map();

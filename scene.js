@@ -8,7 +8,11 @@ const ghosts = { field: [], pen: [], work: [], shelf: [], reg: [] };
 let skyDome, skyMat, sunDisc, starMat;
 let wallMatRef, trimMatRef, floorMatRef, signRef, signBoardRef;
 const clouds = [], doors = [];
-const cam = { yaw: 0, dist: .95, tx: START.x, tz: START.y };
+/* Низкие стены и потолки: в виде сверху стены по пояс и потолков нет,
+   от первого лица стены поднимаются, потолки включаются. */
+const lowWalls = [], ceilings = [];
+const WALL_TALL = 3.2;
+const cam = { yaw: 0, dist: .95, tx: START.x, tz: START.y, fps: false, pitch: -.05 };
 const V = new THREE.Vector3();
 
 /* Нарисованные текстуры подгружаются поверх процедурных.
@@ -147,6 +151,34 @@ function buildWorld() {
   floorMatRef = floorZ.material;
   zonePlane('back', 0x7d8794, '#868f9c', '#79828e', 19, 'concrete.jpg', [4, 1.5], 0xaeb6c2);
 
+  /* Потолки: нужны только от первого лица, иначе они закрыли бы вид сверху.
+     Заодно светильники — без них потолок читается как серая заглушка. */
+  const CEIL_Y = WALL_TALL - .35;
+  const ceil = (key, color) => {
+    const q = zw(ZONES[key]);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.d),
+      new THREE.MeshStandardMaterial({ color, roughness: .95, side: THREE.DoubleSide }));
+    m.rotation.x = Math.PI / 2; m.position.set(q.cx, CEIL_Y, q.cz);
+    m.visible = false; ceilings.push(m); add(m);
+  };
+  ceil('hall', 0xcdd6e4);
+  ceil('back', 0x9aa4b3);
+  // балки вдоль зала — без них потолок читается как серая заглушка
+  for (let i = 0; i < 8; i++) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(GW - ZONES.hall.x0, .16, .3),
+      new THREE.MeshStandardMaterial({ color: 0xaab4c4, roughness: .8 }));
+    beam.position.set((ZONES.hall.x0 + GW) / 2, CEIL_Y - .1, 2 + i * 3);
+    beam.visible = false; ceilings.push(beam); add(beam);
+  }
+  // светильники-панели
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .55),
+      new THREE.MeshBasicMaterial({ color: 0xfffaf0 }));
+    p.rotation.x = Math.PI / 2;
+    p.position.set(32.5 + j * 6, CEIL_Y - .04, 3.5 + i * 4);
+    p.visible = false; ceilings.push(p); add(p);
+  }
+
   // разметка в зале: полосы по центру широких проходов между рядами полок
   const H = ZONES.hall;
   for (const x of [31, 34, 37, 40, 43, 46]) {
@@ -158,6 +190,24 @@ function buildWorld() {
   const entryMat = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4.4),
     new THREE.MeshBasicMaterial({ color: 0xffd75e, transparent: true, opacity: .2 }));
   entryMat.rotation.x = -Math.PI / 2; entryMat.position.set(46.4, .03, DOOR.y + .5); add(entryMat);
+  /* Указатели на полу: куда идти платить и где ворота в цеха.
+     Рисуем плоскими треугольниками — читается с любого ракурса и стоит один draw call. */
+  const arrow = (x, z, rot, color, scale) => {
+    const g = new THREE.BufferGeometry();
+    const k = scale || 1;
+    g.setAttribute('position', new THREE.Float32BufferAttribute(
+      [0, 0, -.75 * k, -.45 * k, 0, .32 * k, .45 * k, 0, .32 * k], 3));
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: .42, side: THREE.DoubleSide, depthWrite: false
+    }));
+    m.position.set(x, .035, z); m.rotation.y = rot; add(m);
+  };
+  for (let i = 0; i < 5; i++) arrow(45.4, 6 + i * 4, -Math.PI / 2, 0x6ee7a0);      // к кассам
+  for (const [x, z, r] of [[30.6, 13.5, Math.PI / 2], [30.6, 14.5, Math.PI / 2],
+  [27.6, 13.5, -Math.PI / 2], [18.4, 13.5, -Math.PI / 2], [15.6, 14.5, 0]])
+    arrow(x, z, r, 0x8fd0ff, .9);                                                  // между зонами
+  arrow(34, 26.4, 0, 0xffca7a, .9);                                                // в служебку
+
   // прикассовая полоса
   const payLine = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 15),
     new THREE.MeshBasicMaterial({ color: 0x6ee7a0, transparent: true, opacity: .1 }));
@@ -167,13 +217,17 @@ function buildWorld() {
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x2b6cff, roughness: .5 });
   wallMatRef = wallMat; trimMatRef = trimMat;
   const yardMat = new THREE.MeshStandardMaterial({ color: 0xb0b8c4, roughness: .9 });
+  /* Стены низкие (1.3), чтобы вид сверху не упирался в них. От первого лица так нельзя —
+     запоминаем каждую стену и в FPS растягиваем её до нормальной высоты. */
   const wall = (x, z, w, d, h, m, trim) => {
     const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m || wallMat);
     o.position.set(x, h / 2, z); o.castShadow = o.receiveShadow = true; add(o);
+    let t = null;
     if (trim !== false) {
-      const t = new THREE.Mesh(new THREE.BoxGeometry(w + .08, .16, d + .08), trimMat);
+      t = new THREE.Mesh(new THREE.BoxGeometry(w + .08, .16, d + .08), trimMat);
       t.position.set(x, h + .02, z); add(t);
     }
+    if (h < 2) lowWalls.push({ o, t, h });
     return o;
   };
 
@@ -370,6 +424,27 @@ function buildWorld() {
   }
   const pal3 = makePallet(); pal3.position.set(31.5, 0, backZ.y1 - .5); add(pal3);
 
+  /* Обжитая площадка перед входом: пока покупатель идёт с парковки, он проходит
+     мимо клумб и скамеек — так вход читается как вход, а не как дырка в стене. */
+  for (const [x, z] of [[GW + .8, DOOR.y - 3], [GW + .8, DOOR.y + 4],
+  [ZONES.hall.x0 + 1, -1.2], [ZONES.hall.x0 + 8, -1.2], [GW - 3, -1.2],
+  [GW + 1.2, GH + 1.5], [ZONES.hall.x0 - 3, GH + 1.5]]) {
+    const f = makeFlowerbed(); f.position.set(x, 0, z); add(f);
+  }
+  for (const [x, z, r] of [[GW + 1.6, DOOR.y - 4.6, 0], [GW + 1.6, DOOR.y + 5.4, 0],
+  [ZONES.hall.x0 + 4.5, -1.4, 0]]) {
+    const b = makeBench(); b.position.set(x, 0, z); b.rotation.y = r; add(b);
+  }
+  for (const [x, z] of [[GW + .4, DOOR.y - 1.6], [GW + .4, DOOR.y + 2.6], [GW + 6, 12]]) {
+    const bin = makeBin(); bin.position.set(x, 0, z); add(bin);
+  }
+  // указатель парковки
+  const pSign = makeSign('🅿 ПАРКОВКА', 2.2, .5, null, '#ffffff', 66);
+  pSign.position.set(GW + 6, 2.2, 4.2); add(pSign);
+  const pPole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.2, 8),
+    new THREE.MeshStandardMaterial({ color: 0x2f3a4d }));
+  pPole.position.set(GW + 6, 1.1, 4.2); pPole.castShadow = true; add(pPole);
+
   // парковка: машины покупателей и тележки у входа
   const car = makeCar(0xe4453a); car.position.set(GW + 2.5, 0, 8); car.rotation.y = Math.PI / 2; add(car);
   const car2 = makeCar(0x4f8cff); car2.position.set(GW + 2.5, 0, 12); car2.rotation.y = Math.PI / 2; add(car2);
@@ -541,7 +616,9 @@ function updateBuildingMesh(b, m, t) {
     while (m.out.children.length) m.out.remove(m.out.children[0]);
     for (let i = 0; i < b.out.length; i++) {
       const it = makeItem(b.out[i]);
-      it.position.set(.62, .1 + i * .34, .62 - i * .12);
+      // от первого лица высокая стопка выглядела как парящий в воздухе товар
+      it.scale.setScalar(.78);
+      it.position.set(.6, .08 + i * .25, .6 - i * .1);
       m.out.add(it);
     }
   }
@@ -874,10 +951,27 @@ function updateCamera(dt) {
     if (camFocus.t <= 0) camFocus = null;
     else { fx = camFocus.x; fy = camFocus.y; }
   }
-  const tx = Math.max(4.5, Math.min(30, fx));
-  const tz = Math.max(4.5, Math.min(17, fy));
-  cam.tx += (tx - cam.tx) * Math.min(1, dt * 5);
-  cam.tz += (tz - cam.tz) * Math.min(1, dt * 5);
+  // границы держим от размеров карты, а не константами: иначе камера отстаёт в дальних зонах
+  const mx = 4.5 * cam.dist, mz = 4.5 * cam.dist;
+  const tx = Math.max(mx, Math.min(GW - mx, fx));
+  const tz = Math.max(mz, Math.min(GH - mz, fy));
+  const snap = cam.fps ? 1 : Math.min(1, dt * 5);
+  cam.tx += (tx - cam.tx) * snap;
+  cam.tz += (tz - cam.tz) * snap;
+
+  if (cam.fps) {
+    /* Вид от первого лица: камера в глазах игрока, смотрит по cam.yaw и cam.pitch.
+       Цель слежения приравниваем к самому игроку, иначе отсечение по дальности
+       считалось бы от точки, где камеры уже нет. */
+    cam.tx = fx; cam.tz = fy;
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const fwd = new THREE.Vector3(-Math.sin(cam.yaw) * cp, sp, -Math.cos(cam.yaw) * cp);
+    bobT += dt * player.moving * 9;
+    const eye = 1.52 + Math.sin(bobT) * .035 * player.moving;    // лёгкое покачивание при ходьбе
+    camera.position.set(fx, eye, fy);
+    camera.lookAt(fx + fwd.x, eye + fwd.y, fy + fwd.z);
+    return;
+  }
   const d = 12.5 * cam.dist, h = 13.5 * cam.dist;
   camera.position.set(
     cam.tx + Math.sin(cam.yaw) * d,
@@ -886,8 +980,18 @@ function updateCamera(dt) {
   camera.lookAt(cam.tx, 1.1, cam.tz);
 }
 
+/* Стены и потолки, которые живут по-разному в двух видах. */
+function applyViewMode() {
+  for (const w of lowWalls) {
+    w.o.scale.y = cam.fps ? WALL_TALL / w.h : 1;
+    w.o.position.y = (cam.fps ? WALL_TALL : w.h) / 2;
+    if (w.t) w.t.position.y = (cam.fps ? WALL_TALL : w.h) + .02;
+  }
+  for (const c of ceilings) c.visible = cam.fps;
+}
+
 /* ---------- кадр ---------- */
-let popT = 0;
+let popT = 0, bobT = 0, lastFps = null;
 /* Всё, что далеко от камеры, просто не рисуем — иначе на большой карте
    набегает больше тысячи draw call и телефон захлёбывается. */
 const GHOST_R2 = 15 * 15, ITEM_R2 = 19 * 19;
@@ -908,6 +1012,7 @@ function updateGhosts(t) {
 }
 
 function renderFrame(t, dt) {
+  if (lastFps !== cam.fps) { lastFps = cam.fps; applyViewMode(); }
   syncWorld();
   updateGhosts(t);
   // жёлтое кольцо под той постройкой, с которой сейчас снимем товар:
@@ -935,7 +1040,11 @@ function renderFrame(t, dt) {
     m.label.quaternion.copy(camera.quaternion);
     // ценник показываем рядом с игроком, а пустую полку видно издалека — её надо пополнить
     const d = Math.hypot(sh.x + .5 - player.x, sh.y + .5 - player.y);
-    const a = sh.item ? Math.max(0, Math.min(1, (6.5 - d) / 2)) : Math.max(0, Math.min(1, (26 - d) / 4));
+    let a = sh.item ? Math.max(0, Math.min(1, (6.5 - d) / 2)) : Math.max(0, Math.min(1, (26 - d) / 4));
+    // от первого лица ценник у самого носа занимал пол-экрана: делаем его мельче
+    // и убираем, когда стоишь вплотную
+    m.label.scale.setScalar(cam.fps ? .45 : 1);
+    if (cam.fps && d < 2.2) a = 0;
     m.label.visible = a > .02;
     m.label.material.opacity = a;
     m.box.visible = far2(sh.x + .5, sh.y + .5) < ITEM_R2;
@@ -968,7 +1077,8 @@ function renderFrame(t, dt) {
   for (const [i, m] of meshes.reg) { m.pop = Math.min(1, m.pop + dt * 3.5); m.g.scale.setScalar(ease(m.pop)); }
   for (const [b, m] of meshes.b) m.bar.quaternion.copy(camera.quaternion);
 
-  animChar(playerM, player, t, dt);
+  playerM.visible = !cam.fps;              // от первого лица себя не видно
+  if (playerM.visible) animChar(playerM, player, t, dt);
   updateCustomers(t, dt);
   updateStaffMeshes(t, dt);
   updateTrash();

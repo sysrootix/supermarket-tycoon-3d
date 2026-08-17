@@ -15,6 +15,7 @@ addEventListener('keydown', e => {
   const c = e.code;
   if (HOLD.includes(c)) { keys[c] = 1; e.preventDefault(); }
   if (c === 'KeyB' || c === 'Tab') { toggleSheet(); e.preventDefault(); }
+  if (c === 'KeyV' && window.__toggleView) window.__toggleView();
   if (c === 'Escape') { for (const id of ['sheet', 'menu', 'away', 'trailer', 'takeWin', 'chapWin']) $(id).classList.add('hidden'); probOpen = false; updateProblems(); }
   if (c === 'KeyQ') cam.yaw += .25;
   if (c === 'KeyE') cam.yaw -= .25;
@@ -31,7 +32,9 @@ function getInput() {
   if (Math.abs(stickV.x) > .12 || Math.abs(stickV.y) > .12) { x = stickV.x; y = stickV.y; }
   // ввод — относительно направления камеры
   const s = Math.sin(cam.yaw), c = Math.cos(cam.yaw);
-  return { x: x * c + y * s, y: y * c - x * s };
+  // от первого лица «куда смотрю» решает камера: подбор товара идёт по взгляду,
+  // а не по направлению последнего шага
+  return { x: x * c + y * s, y: y * c - x * s, look: cam.fps ? cam.yaw + Math.PI : null };
 }
 
 (function setupStick() {
@@ -63,18 +66,21 @@ function getInput() {
   cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
   cv.addEventListener('pointermove', e => {
     if (!drag) return;
-    cam.yaw -= (e.clientX - drag.x) * .006;
-    cam.dist = Math.min(3.2, Math.max(.6, cam.dist + (e.clientY - drag.y) * .002));
+    cam.yaw -= (e.clientX - drag.x) * (cam.fps ? .004 : .006);
+    // от первого лица вертикаль — это взгляд вверх-вниз, а не зум
+    if (cam.fps) cam.pitch = Math.max(-.9, Math.min(.7, cam.pitch - (e.clientY - drag.y) * .004));
+    else cam.dist = Math.min(3.2, Math.max(.6, cam.dist + (e.clientY - drag.y) * .002));
     drag = { x: e.clientX, y: e.clientY };
   });
   const up = () => drag = null;
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('wheel', e => {
-    cam.dist = Math.min(3.2, Math.max(.6, cam.dist + Math.sign(e.deltaY) * .09));
+    if (cam.fps) cam.pitch = Math.max(-.9, Math.min(.7, cam.pitch - Math.sign(e.deltaY) * .05));
+    else cam.dist = Math.min(3.2, Math.max(.6, cam.dist + Math.sign(e.deltaY) * .09));
     e.preventDefault();
   }, { passive: false });
   cv.addEventListener('touchmove', e => {
-    if (e.touches.length !== 2) return;
+    if (e.touches.length !== 2 || cam.fps) return;
     const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     if (pinch) cam.dist = Math.min(3.2, Math.max(.6, cam.dist * (pinch / d)));
     pinch = d; drag = null;
@@ -159,9 +165,17 @@ function drawMinimap() {
     mmx.fillStyle = '#' + STAFF[s.role].c.toString(16).padStart(6, '0');
     mmx.fillRect(s.x * MS - 1.5, s.y * MS - 1.5, 4, 4);
   }
-  // игрок
+  // игрок и куда он смотрит — в виде от первого лица без этого легко потеряться
+  const px = player.x * MS, py = player.y * MS;
+  const fx = Math.sin(player.dir), fy = Math.cos(player.dir);
+  mmx.fillStyle = 'rgba(79,140,255,.55)';
+  mmx.beginPath();
+  mmx.moveTo(px + fx * 11, py + fy * 11);
+  mmx.lineTo(px - fy * 5, py + fx * 5);
+  mmx.lineTo(px + fy * 5, py - fx * 5);
+  mmx.fill();
   mmx.fillStyle = '#4f8cff';
-  mmx.beginPath(); mmx.arc(player.x * MS, player.y * MS, 3.6, 0, 7); mmx.fill();
+  mmx.beginPath(); mmx.arc(px, py, 3.2, 0, 7); mmx.fill();
   mmx.strokeStyle = 'rgba(255,255,255,.85)'; mmx.lineWidth = 1.4; mmx.stroke();
   mmx.strokeStyle = 'rgba(255,255,255,.14)'; mmx.lineWidth = 1;
   mmx.strokeRect(.5, .5, w - 1, h - 1);
@@ -670,7 +684,26 @@ function wireUI() {
     if (!sheetOpen) return;
     if (!$('sheet').contains(e.target) && !$('shopBtn').contains(e.target)) toggleSheet(false);
   }, true);
-  $('camBtn').onclick = () => { cam.yaw = 0; cam.dist = .95; SFX.ui(); };
+  // переключение вида: сверху ↔ от первого лица
+  const viewIcon = () => {
+    $('viewBtn').textContent = cam.fps ? '🗺' : '👁';
+    $('viewBtn').title = cam.fps ? 'Вид сверху' : 'Вид от первого лица';
+    $('viewBtn2').textContent = cam.fps ? '🗺 Вид сверху' : '👁 Вид от первого лица';
+  };
+  const toggleView = () => {
+    cam.fps = !cam.fps;
+    if (cam.fps) { cam.pitch = -.05; cam.yaw = (player.dir || 0) + Math.PI; }
+    else cam.dist = .95;
+    viewIcon();
+    $('crosshair').classList.toggle('hidden', !cam.fps);
+    toast(cam.fps ? '👁 Вид от первого лица — тяни, чтобы осмотреться' : '🗺 Вид сверху');
+    SFX.ui();
+  };
+  $('viewBtn').onclick = toggleView;
+  $('viewBtn2').onclick = () => { $('menu').classList.add('hidden'); toggleView(); };
+  window.__toggleView = toggleView;
+  viewIcon();
+  $('camBtn').onclick = () => { cam.yaw = 0; cam.dist = .95; cam.pitch = -.05; SFX.ui(); };
   $('awayClose').onclick = () => { $('away').classList.add('hidden'); SFX.coin(); };
   // ручной бэкап: файл можно унести на другое устройство или в другой браузер
   $('exportBtn').onclick = () => { save(true); exportSave(); toast('💾 Бэкап сохранён в загрузки', 'good'); };
@@ -831,7 +864,7 @@ function showAway(rep) {
 
 /* ---------- обучение ---------- */
 const TUT = [
-  ['Твой супермаркет 🏪', 'Пять помещений: <b>огород</b>, <b>загон</b>, <b>цеха</b>, <b>торговый зал</b> и <b>служебка</b> за залом. Между любыми двумя постройками проход в две клетки — можно спокойно пройти мимо, никого не задев. Бегаешь сам: <b>WASD / стрелки</b> или <b>джойстик</b> на телефоне. Камера — перетаскивание, зум колесом/щипком (отъезжает на всю территорию).'],
+  ['Твой супермаркет 🏪', 'Пять помещений: <b>огород</b>, <b>загон</b>, <b>цеха</b>, <b>торговый зал</b> и <b>служебка</b> за залом. Между любыми двумя постройками проход в две клетки — можно спокойно пройти мимо, никого не задев. Бегаешь сам: <b>WASD / стрелки</b> или <b>джойстик</b> на телефоне. Камера — перетаскивание, зум колесом/щипком. Кнопка <b>👁</b> (или <b>V</b>) переключает <b>вид от первого лица</b>: стены вырастают, включается потолок, и подбирать ты будешь ровно то, на что смотришь.'],
   ['Огород и загон 🌱', 'Огород — 20 мест в четыре ряда, загон за забором с калиткой — 12. Одинаковые грядки встают рядом, между рядами широкие дорожки: подходишь и берёшь именно то, что нужно, не задевая соседей.'],
   ['Цеха 🍳', 'Отдельный двор на 24 места с погрузкой у северных ворот. Принёс мясо к грилю — получил стейк втрое дороже. Цех сам показывает, какого сырья ему не хватает.'],
   ['Рюкзак умный 🎒', 'Набирай всё подряд и вставай в проходе — товар <b>сам разойдётся по нужным полкам</b>: картошка к картошке, мясо к мясу, а стоящий рядом цех заберёт своё сырьё. Полки, куда сейчас уйдёт груз, подсвечиваются зелёным кольцом, а грядка или цех, с которого сейчас снимешь товар, — <b>жёлтым</b>. Берёшь всегда с той стороны, куда смотришь, а тап по рюкзаку открывает <b>🎯 что подбирать</b>: выключенное в руки не попадёт, даже если пройдёшь прямо по грядке.'],

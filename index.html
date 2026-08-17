@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <canvas id="cv"></canvas>
@@ -32,6 +32,7 @@
     <div class="spacer"></div>
     <button class="icobtn" id="musicBtn" title="Музыка">🎵</button>
     <button class="icobtn" id="soundBtn" title="Звук">🔊</button>
+    <button class="icobtn" id="viewBtn" title="Вид: сверху / от первого лица">👁</button>
     <button class="icobtn" id="fsBtn" title="Во весь экран">⛶</button>
     <button class="icobtn" id="menuBtn" title="Меню">⚙️</button>
   </div>
@@ -52,6 +53,7 @@
 
   <button id="probBtn" class="probbtn hidden"><span id="probCount">0</span> ⚠️</button>
 
+  <div id="crosshair" class="hidden"></div>
   <div id="toasts"></div>
 
   <div class="bottom">
@@ -94,6 +96,7 @@
       <button id="soundBtn2" class="ghost">🔊 Звук</button>
       <button id="musicBtn2" class="ghost">🎵 Музыка</button>
       <button id="fsBtn2" class="ghost">⛶ Во весь экран</button>
+      <button id="viewBtn2" class="ghost">👁 Вид от первого лица</button>
     </div>
     <button id="trackBtn" class="ghost">🎵 Выбрать музыку</button>
     <div id="trackList" class="tracklist hidden"></div>
@@ -194,13 +197,13 @@
   </div>
 </div>
 
-<script src="vendor/three.min.js?v=15"></script>
-<script src="data.js?v=15"></script>
-<script src="sim.js?v=15"></script>
-<script src="audio.js?v=15"></script>
-<script src="models.js?v=15"></script>
-<script src="scene.js?v=15"></script>
-<script src="ui.js?v=15"></script>
-<script src="main.js?v=15"></script>
+<script src="vendor/three.min.js?v=16"></script>
+<script src="data.js?v=16"></script>
+<script src="sim.js?v=16"></script>
+<script src="audio.js?v=16"></script>
+<script src="models.js?v=16"></script>
+<script src="scene.js?v=16"></script>
+<script src="ui.js?v=16"></script>
+<script src="main.js?v=16"></script>
 </body>
 </html>
