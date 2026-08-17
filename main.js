@@ -64,6 +64,13 @@ function handleEvents() {
       case 'hot':
         toast('🔥 Товар дня: ' + ITEMS[ev.item].e + ' ' + ITEMS[ev.item].n + ' — цена ×' + HOT_MUL);
         break;
+      case 'spoil':
+        floatText(ev.x, ev.y, '🤢 испортилось', '#ff6b6b');
+        SFX.error();
+        break;
+      case 'toopricey':
+        floatText(ev.x, ev.y, '😕 дорого', '#ff9f68');
+        break;
       case 'litter':
         floatText(ev.x, ev.y, '🗑️', '#ff9f68');
         break;

@@ -2,22 +2,22 @@
 const GW = 34, GH = 22;
 
 const ITEMS = {
-  tomato:   { n: 'Помидор',  e: '🍅', price: 10,  c: 0xe4453a, m: 'sphere' },
-  cucumber: { n: 'Огурец',   e: '🥒', price: 16,  c: 0x4aa04e, m: 'capsule' },
-  potato:   { n: 'Картофель', e: '🥔', price: 14, c: 0xc9a15a, m: 'egg' },
-  wheat:    { n: 'Пшеница',  e: '🌾', price: 12,  c: 0xdfb445, m: 'bundle' },
-  apple:    { n: 'Яблоко',   e: '🍎', price: 20,  c: 0xd6342f, m: 'sphere' },
-  egg:      { n: 'Яйцо',     e: '🥚', price: 22,  c: 0xf6efe2, m: 'egg' },
-  milk:     { n: 'Молоко',   e: '🥛', price: 28,  c: 0xf3f7ff, m: 'carton' },
-  meat:     { n: 'Мясо',     e: '🥩', price: 42,  c: 0xd9707c, m: 'slab' },
-  salad:    { n: 'Салат',    e: '🥗', price: 60,  c: 0x6cc46f, m: 'bowl' },
-  fries:    { n: 'Картошка фри', e: '🍟', price: 72, c: 0xf0b429, m: 'fries' },
-  bread:    { n: 'Хлеб',     e: '🥖', price: 48,  c: 0xc98a4b, m: 'loaf' },
-  juice:    { n: 'Сок',      e: '🧃', price: 88,  c: 0xff9f43, m: 'carton' },
-  cheese:   { n: 'Сыр',      e: '🧀', price: 95,  c: 0xf2c14e, m: 'wedge' },
-  steak:    { n: 'Стейк',    e: '🍖', price: 135, c: 0x8f4b38, m: 'slab' },
-  cake:     { n: 'Торт',     e: '🎂', price: 260, c: 0xf2a2c0, m: 'cake' },
-  pizza:    { n: 'Пицца',    e: '🍕', price: 430, c: 0xe07a3c, m: 'pizza' },
+  tomato:   { n: 'Помидор',  e: '🍅', price: 10,  c: 0xe4453a, m: 'sphere',  life: 210, dem: 'day' },
+  cucumber: { n: 'Огурец',   e: '🥒', price: 16,  c: 0x4aa04e, m: 'capsule', life: 210, dem: 'day' },
+  potato:   { n: 'Картофель', e: '🥔', price: 14, c: 0xc9a15a, m: 'egg',     life: 0,   dem: 'day' },
+  wheat:    { n: 'Пшеница',  e: '🌾', price: 12,  c: 0xdfb445, m: 'bundle',  life: 0,   dem: 'day' },
+  apple:    { n: 'Яблоко',   e: '🍎', price: 20,  c: 0xd6342f, m: 'sphere',  life: 240, dem: 'morning' },
+  egg:      { n: 'Яйцо',     e: '🥚', price: 22,  c: 0xf6efe2, m: 'egg',     life: 180, dem: 'morning' },
+  milk:     { n: 'Молоко',   e: '🥛', price: 28,  c: 0xf3f7ff, m: 'carton',  life: 110, dem: 'morning' },
+  meat:     { n: 'Мясо',     e: '🥩', price: 42,  c: 0xd9707c, m: 'slab',    life: 100, dem: 'day' },
+  salad:    { n: 'Салат',    e: '🥗', price: 60,  c: 0x6cc46f, m: 'bowl',    life: 80,  dem: 'day' },
+  fries:    { n: 'Картошка фри', e: '🍟', price: 72, c: 0xf0b429, m: 'fries', life: 70, dem: 'day' },
+  bread:    { n: 'Хлеб',     e: '🥖', price: 48,  c: 0xc98a4b, m: 'loaf',    life: 150, dem: 'morning' },
+  juice:    { n: 'Сок',      e: '🧃', price: 88,  c: 0xff9f43, m: 'carton',  life: 220, dem: 'evening' },
+  cheese:   { n: 'Сыр',      e: '🧀', price: 95,  c: 0xf2c14e, m: 'wedge',   life: 200, dem: 'evening' },
+  steak:    { n: 'Стейк',    e: '🍖', price: 135, c: 0x8f4b38, m: 'slab',    life: 90,  dem: 'day' },
+  cake:     { n: 'Торт',     e: '🎂', price: 260, c: 0xf2a2c0, m: 'cake',    life: 130, dem: 'evening' },
+  pizza:    { n: 'Пицца',    e: '🍕', price: 430, c: 0xe07a3c, m: 'pizza',   life: 75,  dem: 'evening' },
 };
 
 /* zone: field — огород, pen — загон, work — цеха
@@ -131,3 +131,12 @@ const DOOR = { x: 33, y: 10 };
 const GATES = [[10, 10], [10, 11], [18, 10], [18, 11], [9, 12]];   // проходы между зонами
 const START = { x: 19.5, y: 10.5 };
 const DAY_LEN = 180;
+
+/* ---------- спрос по времени дня ----------
+   Утром берут молочку и хлеб, днём готовую еду, вечером десерты и напитки.
+   Раскладку приходится менять — день перестаёт быть одинаковым. */
+const DEMAND = {
+  morning: { n: 'утренний', e: '🌅', from: .22, to: .42, boost: 2.0 },
+  day: { n: 'дневной', e: '☀️', from: .42, to: .64, boost: 1.8 },
+  evening: { n: 'вечерний', e: '🌇', from: .64, to: .86, boost: 1.9 },
+};

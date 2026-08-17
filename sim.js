@@ -6,8 +6,8 @@ const G = {
   money: 250, day: 1, dayT: DAY_LEN * 0.35, rep: 100,
   buildings: [], shelves: [], staff: [], customers: [],
   regs: 1, upg: { bag: 0, boots: 0, fert: 0, register: 0, ads: 0, shelf: 0, crewBag: 0, crewFeet: 0, crewSkill: 0, payroll: 0 },
-  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value',
-  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, byItem: {} },
+  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value', price: {},
+  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, spoiled: 0, byItem: {}, daily: [] },
 };
 const player = { x: START.x, y: START.y, carry: [], act: 0, speed: 3.7, moving: 0, dir: 0 };
 const regs = [];
@@ -111,9 +111,35 @@ const inReach = (e, list, r) => list.filter(o => near(e, o.x, o.y, r || REACH)).
    по соседним полкам и цехам, не бегая от одной к другой. */
 const REACH_DROP = 3.2;
 const shelfBonus = () => 2 * (G.upg.shelf || 0);
-/* цена с учётом рекламы и «товара дня» */
+/* ---------- цены и спрос ----------
+   Наценку ставит игрок: дороже — выше маржа, но покупатель охотнее пройдёт мимо. */
+const PRICE_MIN = .6, PRICE_MAX = 1.8;
+const markup = (it) => Math.min(PRICE_MAX, Math.max(PRICE_MIN, G.price[it] || 1));
+const setMarkup = (it, v) => {
+  G.price[it] = Math.min(PRICE_MAX, Math.max(PRICE_MIN, Math.round(v * 20) / 20));
+  save(true);
+};
 const HOT_MUL = 1.7;
-const itemPrice = (it) => ITEMS[it].price * priceMul() * (it === G.hot ? HOT_MUL : 1);
+const basePrice = (it) => ITEMS[it].price * priceMul() * (it === G.hot ? HOT_MUL : 1);
+const itemPrice = (it) => basePrice(it) * markup(it);
+
+/* Какая категория спроса сейчас в силе. */
+function demandNow() {
+  const p = G.dayT / DAY_LEN;
+  for (const k in DEMAND) if (p >= DEMAND[k].from && p < DEMAND[k].to) return k;
+  return null;                                        // ночь: спроса нет ни на что особенно
+}
+/* Насколько охотно берут этот товар прямо сейчас. */
+function appeal(it) {
+  const cur = demandNow();
+  const d = ITEMS[it].dem;
+  let v = cur ? (d === cur ? DEMAND[cur].boost : .7) : .5;
+  // реакция на цену: дешевле базовой — расхватывают, дороже — думают
+  const m = markup(it);
+  v *= Math.max(.08, 1.9 - m * 1.15);
+  if (it === G.hot) v *= 1.5;
+  return v;
+}
 
 /* ---------- уровень магазина ---------- */
 const xpNeed = (lvl) => Math.round(120 * Math.pow(lvl, 1.45));
@@ -157,7 +183,7 @@ function newBuilding(t, slot) {
 }
 function newShelf(slot) {
   const s = SHELF_SLOTS[slot];
-  return { slot, x: s.x, y: s.y, item: null, n: 0, cap: 8, res: 0 };
+  return { slot, x: s.x, y: s.y, item: null, n: 0, cap: 8, res: 0, age: 0 };
 }
 const shelfCap = (sh) => sh.cap + shelfBonus();
 
@@ -267,7 +293,7 @@ function playerInteract(dt) {
     if (empty) {
       const item = majorItem(player.carry);
       takeFromCarry(player.carry, item);
-      empty.item = item; empty.n = 1;
+      empty.item = item; empty.n = 1; empty.age = 0;
       player.act = .13; G.stats.stocked++; addXp(1);
       emit({ t: 'drop', x: empty.x + .5, y: empty.y + .5, item, from: 'player' });
       return;
@@ -399,7 +425,17 @@ function updateCustomer(c, dt) {
     if (!c.want) {
       const list = stockedShelves();
       if (!list.length) { c.state = c.basket.length ? 'queue0' : 'leave'; return; }
-      c.want = list[(Math.random() * list.length) | 0]; c.want.res++;
+      // выбор с весом: спрос по времени дня и наценка решают, что схватят
+      const w = list.map(s => Math.max(.02, appeal(s.item)));
+      let r = Math.random() * w.reduce((a, b) => a + b, 0), pick = list[0];
+      for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0) { pick = list[i]; break; } }
+      // слишком дорого — часть покупателей уходит ни с чем
+      if (markup(pick.item) > 1.35 && Math.random() < (markup(pick.item) - 1.35) * 1.6) {
+        c.state = c.basket.length ? 'queue0' : 'leave';
+        if (!c.basket.length) { G.rep = Math.max(0, G.rep - .5); emit({ t: 'toopricey', x: c.x, y: c.y, item: pick.item }); }
+        return;
+      }
+      c.want = pick; pick.res++;
     }
     const sh = c.want;
     if (walkTo(c, sh.x, sh.y, 1, dt)) {
@@ -699,6 +735,30 @@ function planRoute(s, pol) {
   return pick(true) || pick(false);
 }
 
+/* ---------- порча товара ----------
+   Скоропортящееся не лежит вечно: просроченное уходит в мусор и бьёт по репутации.
+   Значит заваливать полки впрок невыгодно, а холодные ряды надо ротировать. */
+function updateSpoilage(dt) {
+  for (const sh of G.shelves) {
+    if (!sh.item || !sh.n) { sh.age = 0; continue; }
+    const life = ITEMS[sh.item].life;
+    if (!life) { sh.age = 0; continue; }            // крупа и картошка не портятся
+    sh.age += dt;
+    if (sh.age < life) continue;
+    sh.age = 0;
+    sh.n--;
+    G.stats.spoiled++;
+    G.rep = Math.max(0, G.rep - .6);
+    emit({ t: 'spoil', x: sh.x + .5, y: sh.y + .5, item: sh.item });
+    if (!sh.n) sh.item = null;
+  }
+}
+/* Свежесть верхней единицы: 1 — только что выложили, 0 — сейчас испортится. */
+const freshness = (sh) => {
+  const life = sh.item ? ITEMS[sh.item].life : 0;
+  return life ? Math.max(0, 1 - sh.age / life) : 1;
+};
+
 /* ---------- экономика ---------- */
 // «товар дня» — выбирается из того, что магазин реально умеет производить
 function pickHot() {
@@ -900,7 +960,7 @@ function snapshot() {
     money: G.money, day: G.day, dayT: G.dayT, rep: G.rep, regs: G.regs,
     upg: G.upg, quest: G.quest, stats: G.stats,
     level: G.level, xp: G.xp, hot: G.hot, trash: G.trash,
-    policy: G.policy, sp: G.staff.map(s => s.policy || null),
+    policy: G.policy, sp: G.staff.map(s => s.policy || null), price: G.price,
     b: G.buildings.map(b => ({ t: b.t, s: b.slot, st: b.stock, o: b.out, l: b.lvl || 1 })),
     sh: G.shelves.map(s => ({ s: s.slot, i: s.item, n: s.n })),
     st: G.staff.map(s => s.role),
@@ -946,7 +1006,7 @@ function applySave(d) {
       upg: Object.assign({ bag: 0, boots: 0, fert: 0, register: 0, ads: 0, shelf: 0, crewBag: 0, crewFeet: 0, crewSkill: 0, payroll: 0 }, d.upg),
       quest: d.quest, stats: Object.assign(G.stats, d.stats),
       level: d.level || 1, xp: d.xp || 0, hot: d.hot || 'tomato', trash: d.trash || [],
-      policy: d.policy || 'value',
+      policy: d.policy || 'value', price: d.price || {},
     });
     // Старые сейвы хранят слоты прежней планировки — раскладываем заново по зонам.
     G.buildings = [];
@@ -1013,6 +1073,7 @@ function simUpdate(dt, input) {
   spawnT -= dt * (1 + .25 * G.upg.ads) * (0.4 + G.rep / 100);
   if (spawnT <= 0) { spawnT = 3.2 + Math.random() * 2.5; spawnCustomer(); }
 
+  updateSpoilage(dt);
   for (const c of G.customers) updateCustomer(c, dt);
   G.customers = G.customers.filter(c => !c.dead);
   updateRegs(dt);

@@ -194,6 +194,15 @@ function updateHUD(dt) {
   $('hotPill').classList.toggle('off', !hot);
   if (hot) $('hotName').textContent = `${hot.e} ${hot.n} ×${HOT_MUL}`;
 
+  const dem = demandNow();
+  const dp = $('demPill');
+  dp.classList.toggle('off', !dem);
+  if (dem) {
+    const list = Object.keys(ITEMS).filter(i => ITEMS[i].dem === dem).slice(0, 4).map(i => ITEMS[i].e).join('');
+    $('demName').textContent = `${DEMAND[dem].e} ${list}`;
+    dp.title = DEMAND[dem].n + ' спрос: эти товары берут охотнее';
+  }
+
   const q = QUESTS[G.quest];
   $('qtext').textContent = q ? q.d : 'Все задания выполнены 🏆';
   $('qreward').textContent = q ? '+' + rub(q.r) : '';
@@ -219,7 +228,7 @@ function bumpMoney() {
 /* ---------- магазин ---------- */
 const TABS = [
   ['field', '🌱 Огород'], ['pen', '🐄 Загон'], ['work', '🍳 Цеха'], ['store', '🏬 Зал'],
-  ['staff', '🧑‍🍳 Персонал'], ['upg', '⚡ Апгрейды'],
+  ['price', '💲 Цены'], ['staff', '🧑‍🍳 Персонал'], ['upg', '⚡ Апгрейды'],
 ];
 let tab = 'field', sheetOpen = false, sheetT = 0;
 
@@ -325,6 +334,8 @@ function renderSheet() {
     itemCard('🛒', 'Касса', 'у вас: ' + G.regs,
       'Ещё одна касса — короче очереди и меньше злых покупателей.',
       regCost(), G.money >= regCost(), buyReg, G.regs >= REG_SLOTS.length);
+  } else if (tab === 'price') {
+    renderPrices();
   } else if (tab === 'staff') {
     renderPolicy();
     for (const r in STAFF) {
@@ -347,6 +358,47 @@ function renderSheet() {
         itemCard(u.e, u.n, 'уровень ' + (G.upg[k] || 0), u.d, c, G.money >= c, () => buyUpg(k));
       }
     }
+  }
+}
+
+/* Цены на полках: наценку ставит игрок и сразу видит спрос. */
+function renderPrices() {
+  const cur = demandNow();
+  const head = document.createElement('div');
+  head.className = 'grouphead';
+  head.innerHTML = cur
+    ? `Сейчас ${DEMAND[cur].e} ${DEMAND[cur].n} спрос — эти товары расхватывают охотнее. Дороже базовой цены — выше маржа, но часть покупателей уйдёт мимо.`
+    : '🌙 Ночь: покупателей мало и берут неохотно. Днём спрос зависит от времени суток.';
+  $('cards').appendChild(head);
+
+  // сначала то, что реально лежит в зале
+  const onShelf = new Set(G.shelves.filter(s => s.item).map(s => s.item));
+  const items = Object.keys(ITEMS).sort((a, b) =>
+    (onShelf.has(b) ? 1 : 0) - (onShelf.has(a) ? 1 : 0) || ITEMS[a].price - ITEMS[b].price);
+
+  for (const it of items) {
+    const I = ITEMS[it], m = markup(it), hot = it === G.hot;
+    const inDemand = cur && I.dem === cur;
+    const row = document.createElement('div');
+    row.className = 'it price' + (onShelf.has(it) ? '' : ' locked');
+    row.innerHTML = `<div class="thumb">${I.e}</div><div class="body">
+      <h3>${I.n}${hot ? ' 🔥' : ''}<small>${inDemand ? DEMAND[cur].e + ' в спросе' : (I.life ? 'портится за ' + I.life + ' с' : 'не портится')}</small></h3>
+      <p>Цена <b style="color:#ffd75e">${rub(itemPrice(it))}</b> · базовая ${rub(basePrice(it))} ·
+         спрос <b style="color:${inDemand ? '#6ee7a0' : '#93a1ba'}">${Math.round(appeal(it) * 100)}%</b></p>
+      <div class="buy"><span class="cost">×${m.toFixed(2)}</span></div></div>`;
+    const box = row.querySelector('.buy');
+    const mk = (label, delta) => {
+      const b = document.createElement('button');
+      b.className = 'lvlbtn'; b.textContent = label;
+      b.onclick = () => { setMarkup(it, markup(it) + delta); SFX.ui(); renderSheet(); };
+      box.appendChild(b);
+    };
+    mk('−', -.05); mk('+', .05);
+    const reset = document.createElement('button');
+    reset.textContent = 'база';
+    reset.onclick = () => { setMarkup(it, 1); SFX.ui(); renderSheet(); };
+    box.appendChild(reset);
+    $('cards').appendChild(row);
   }
 }
 
@@ -579,6 +631,7 @@ const TUT = [
   ['Рюкзак умный 🎒', 'Набирай всё подряд и вставай в проходе — товар <b>сам разойдётся по нужным полкам</b>: картошка к картошке, мясо к мясу, а стоящий рядом цех заберёт своё сырьё. Полки, куда сейчас уйдёт груз, подсвечиваются зелёным кольцом.'],
   ['Касса и покупатели 🛒', 'Клиент берёт товар с полки и встаёт в очередь. Встань <b>за кассу</b> — деньги пойдут. Долгая очередь злит, мусор на полу роняет репутацию — убирай его на бегу или найми уборщика.'],
   ['Смена и конвейер 🧑‍🌾', 'Каждому грузчику можно дать участок: один снимает урожай с <b>огорода</b> и везёт в цеха, второй работает по <b>загону</b>, третий возит <b>готовое из цехов</b> в зал. В режиме «Максимум прибыли» он сам считает, что выгоднее — переработать или продать (товар дня ×1.7 учитывается).'],
+  ['Цены и свежесть 💲', 'Ты сам ставишь наценку на каждый товар: дороже — выше маржа, но часть покупателей пройдёт мимо. Спрос меняется по времени дня — утром берут молочку и хлеб, днём готовую еду, вечером десерты. Скоропортящееся не лежит вечно: полоска над полкой показывает свежесть, просроченное уходит в мусор и бьёт по репутации.'],
   ['Развивайся ⚡', 'Уровень магазина, VIP-клиенты, апгрейды для себя и для смены. Когда участок застроен целиком — качай постройки кнопкой <b>⬆ ур.</b> (быстрее цикл), а ошибку планировки всегда можно исправить: <b>🗑️</b> сносит постройку и возвращает половину вложенного.'],
 ];
 let tutI = 0;

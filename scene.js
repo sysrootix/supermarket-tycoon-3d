@@ -408,11 +408,12 @@ function syncWorld() {
     const model = makeShelf(); g.add(model);
     const label = makeSign('', .96, .27, 'rgba(11,15,26,.78)', '#ffffff', 66);
     label.position.set(0, 1.28, .1); g.add(label);
+    const fresh = newBar(0x6ee7a0); fresh.position.set(0, 1.12, .1); fresh.scale.setScalar(.8); g.add(fresh);
     const box = new THREE.Group(); g.add(box);      // товар на полке — одним переключателем
     g.position.set(sh.x + .5, 0, sh.y + .5);
     g.scale.setScalar(.001);
     scene.add(g);
-    meshes.sh.set(sh, { g, model, label, box, sig: '', items: [], pop: 0 });
+    meshes.sh.set(sh, { g, model, label, box, fresh, sig: '', items: [], pop: 0 });
   }
   for (let i = 0; i < G.regs; i++) {
     if (meshes.reg.has(i)) continue;
@@ -428,10 +429,13 @@ function syncWorld() {
 
 function shelfLabelTex(sh) {
   const it = sh.item ? ITEMS[sh.item] : null;
-  return it ? `${it.n} · ${Math.round(it.price * priceMul())}₽` : '';
+  if (!it) return '';
+  const m = markup(sh.item);
+  const tag = m > 1.02 ? ' ↑' : (m < .98 ? ' ↓' : '');
+  return `${it.n} · ${Math.round(itemPrice(sh.item))}₽${tag}`;
 }
 function updateShelf(sh, m) {
-  const sig = (sh.item || '-') + ':' + sh.n;
+  const sig = (sh.item || '-') + ':' + sh.n + ':' + (markup(sh.item || 'tomato')).toFixed(2);
   if (sig === m.sig) return;
   m.sig = sig;
   for (const o of m.items) o.parent.remove(o);
@@ -835,6 +839,14 @@ function renderFrame(t, dt) {
     m.label.visible = a > .02;
     m.label.material.opacity = a;
     m.box.visible = far2(sh.x + .5, sh.y + .5) < ITEM_R2;
+    // полоска свежести: зелёная → жёлтая → красная, показываем только когда товар портится
+    const f = freshness(sh);
+    const perish = sh.item && ITEMS[sh.item].life > 0;
+    m.fresh.visible = !!perish && sh.n > 0 && f < .96 && far2(sh.x + .5, sh.y + .5) < ITEM_R2;
+    if (m.fresh.visible) {
+      setBar(m.fresh, f, f > .5 ? 0x6ee7a0 : (f > .22 ? 0xffd166 : 0xff6b6b));
+      m.fresh.quaternion.copy(camera.quaternion);
+    }
     // подсветка полок, куда сейчас уйдёт товар из рюкзака
     const d2 = (sh.x + .5 - player.x) ** 2 + (sh.y + .5 - player.y) ** 2;
     const willFill = player.carry.length && d2 < REACH_DROP * REACH_DROP && sh.n < shelfCap(sh) &&

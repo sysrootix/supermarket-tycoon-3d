@@ -1,5 +1,5 @@
 /* Офлайн-кэш. Меняй CACHE при обновлении файлов. */
-const CACHE = 'mt3d-v10';
+const CACHE = 'mt3d-v11';
 const FILES = ['./', './index.html', './style.css', './data.js', './sim.js', './audio.js',
   './models.js', './scene.js', './ui.js', './main.js', './vendor/three.min.js',
   './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',

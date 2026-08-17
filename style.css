@@ -45,6 +45,10 @@ html,body{height:100%;overflow:hidden;background:#0d1220;color:var(--txt);
 .xpbar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd75e,#ff9f68);transition:width .3s}
 .hot{color:#ff9f68}
 .hot.off{display:none}
+.dem{color:#8fd0ff}
+.dem.off{display:none}
+.it.price .buy{gap:6px}
+.it.price .buy button{padding:8px 12px;min-width:40px}
 
 /* настройка приоритетов персонала */
 .policy{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.045);
