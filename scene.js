@@ -119,35 +119,49 @@ function buildWorld() {
     return add(m);
   };
 
+  // помощники: прямоугольник зоны в мировых координатах (зона задана клетками включительно)
+  const zw = (z) => ({ cx: (z.x0 + z.x1 + 1) / 2, cz: (z.y0 + z.y1 + 1) / 2, w: z.x1 - z.x0 + 1, d: z.y1 - z.y0 + 1 });
+  const zonePlane = (key, color, a, b, n, file, rep, tint) => {
+    const q = zw(ZONES[key]);
+    const m = plane(q.cx, q.cz, q.w, q.d, color, checkerTex(a, b, n));
+    if (file) skinMaterial(m.material, file, rep, tint);
+    return m;
+  };
+
   // земля и парковка
-  const ground = plane(17, 10, 200, 200, 0x4f9a43, checkerTex('#55a447', '#4a903e', 100), -.02);
-  skinMaterial(ground.material, 'grass.jpg', [50, 50]);
-  plane(41, 11, 16, 24, 0x4a4f5a, null, .01);
-  for (let i = 0; i < 6; i++) {
-    const l = new THREE.Mesh(new THREE.PlaneGeometry(6, .18), new THREE.MeshBasicMaterial({ color: 0xf0e6c8 }));
-    l.rotation.x = -Math.PI / 2; l.position.set(41, .02, 2 + i * 3.6); add(l);
+  const ground = plane(GW / 2, GH / 2, 260, 260, 0x4f9a43, checkerTex('#55a447', '#4a903e', 130), -.02);
+  skinMaterial(ground.material, 'grass.jpg', [65, 65]);
+  plane(GW + 5.5, 15, 18, 26, 0x4a4f5a, null, .01);
+  for (let i = 0; i < 7; i++) {
+    const l = new THREE.Mesh(new THREE.PlaneGeometry(7, .18), new THREE.MeshBasicMaterial({ color: 0xf0e6c8 }));
+    l.rotation.x = -Math.PI / 2; l.position.set(GW + 5.5, .02, 4 + i * 3.6); add(l);
   }
+  // дорожка от парковки ко входу
+  plane(GW + .5, DOOR.y + .5, 12, 4, 0x9aa3ae, checkerTex('#a6aeb9', '#98a1ac', 6), .012);
 
-  // зоны: рисованные текстуры поверх процедурных
-  const field = plane(5, 6, 9, 11, 0x7a5636, checkerTex('#835c39', '#734f31', 9));      // огород
-  skinMaterial(field.material, 'soil.jpg', [3.5, 4]);
-  const pen = plane(5, 16.5, 9, 8, 0x8f9a5a, checkerTex('#96a25f', '#889255', 9));      // загон
-  skinMaterial(pen.material, 'grass.jpg', [4, 3.5], 0xd9d3a4);      // подсохшая трава загона
-  const yard = plane(14, 10.5, 7, 20, 0xb9bfc9, checkerTex('#c2c8d1', '#b1b8c2', 14));  // цеховой двор
-  skinMaterial(yard.material, 'concrete.jpg', [2, 5], 0xc4cbd6);
-  const floorZ = plane(25.5, 10.5, 14, 20, 0x93a3ba, checkerTex('#a4b3c8', '#8c9db5', 14)); // зал
-  skinMaterial(floorZ.material, 'floor.jpg', [3.5, 5], 0xd2dae6);
+  // полы зон
+  zonePlane('field', 0x7a5636, '#835c39', '#734f31', 16, 'soil.jpg', [5, 4.5]);
+  zonePlane('pen', 0x8f9a5a, '#96a25f', '#889255', 16, 'grass.jpg', [6, 5], 0xd9d3a4);
+  zonePlane('work', 0xb9bfc9, '#c2c8d1', '#b1b8c2', 11, 'concrete.jpg', [3, 7], 0xc4cbd6);
+  const floorZ = zonePlane('hall', 0x93a3ba, '#a4b3c8', '#8c9db5', 19, 'floor.jpg', [5, 6], 0xd2dae6);
   floorMatRef = floorZ.material;
+  zonePlane('back', 0x7d8794, '#868f9c', '#79828e', 19, 'concrete.jpg', [4, 1.5], 0xaeb6c2);
 
-  // разметка в зале: широкие проходы между рядами
-  for (const x of [20, 22, 24, 26, 28]) {
-    const s = new THREE.Mesh(new THREE.PlaneGeometry(.5, 18),
-      new THREE.MeshBasicMaterial({ color: 0x4f8cff, transparent: true, opacity: .13 }));
-    s.rotation.x = -Math.PI / 2; s.position.set(x, .03, 10.5); add(s);
+  // разметка в зале: полосы по центру широких проходов между рядами полок
+  const H = ZONES.hall;
+  for (const x of [31, 34, 37, 40, 43, 46]) {
+    const st = new THREE.Mesh(new THREE.PlaneGeometry(.5, H.y1 - H.y0),
+      new THREE.MeshBasicMaterial({ color: 0x4f8cff, transparent: true, opacity: .12 }));
+    st.rotation.x = -Math.PI / 2; st.position.set(x, .03, (H.y0 + H.y1 + 1) / 2); add(st);
   }
-  const mat = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.4),
-    new THREE.MeshBasicMaterial({ color: 0xffd75e, transparent: true, opacity: .22 }));
-  mat.rotation.x = -Math.PI / 2; mat.position.set(31.6, .03, 10.5); add(mat);
+  // зона входа с тележками
+  const entryMat = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4.4),
+    new THREE.MeshBasicMaterial({ color: 0xffd75e, transparent: true, opacity: .2 }));
+  entryMat.rotation.x = -Math.PI / 2; entryMat.position.set(46.4, .03, DOOR.y + .5); add(entryMat);
+  // прикассовая полоса
+  const payLine = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 15),
+    new THREE.MeshBasicMaterial({ color: 0x6ee7a0, transparent: true, opacity: .1 }));
+  payLine.rotation.x = -Math.PI / 2; payLine.position.set(46.2, .03, 10.5); add(payLine);
 
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xdbe3ee, roughness: .8 });
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x2b6cff, roughness: .5 });
@@ -164,75 +178,93 @@ function buildWorld() {
   };
 
   const LOW = 1.3;
-  // стена между огородом и цехами (x = 10), ворота на y = 10..11
-  wall(10.5, 5.5, .3, 9, LOW, yardMat, false);
-  wall(10.5, 16.5, .3, 8, LOW, yardMat, false);
-  // стена между цехами и залом (x = 18), ворота на y = 10..11
-  wall(18.5, 5.5, .3, 9, LOW, yardMat, false);
-  wall(18.5, 16.5, .3, 8, LOW, yardMat, false);
-  // границы цехового двора
-  wall(14.5, .5, 8, .3, LOW, yardMat, false);
-  wall(14.5, 21.5, 8, .3, LOW, yardMat, false);
+  /* Стены строим из тех же чисел, что и коллизии в sim.js: сегмент до проёма и после.
+     Проёмы всегда шириной 2 клетки — в них свободно проходят двое навстречу. */
+  const segX = (x, y0, y1, h, m, trim) => wall(x + .5, (y0 + y1 + 1) / 2, .3, y1 - y0 + 1, h, m, trim);
+  const segZ = (y, x0, x1, h, m, trim) => wall((x0 + x1 + 1) / 2, y + .5, x1 - x0 + 1, .3, h, m, trim);
 
-  // стены зала
-  wall(25.5, 21.5, 14, .3, LOW);
-  wall(33.5, 5, .3, 10, LOW);
-  wall(33.5, 16.5, .3, 9, LOW);
-  wall(25.5, .5, 14, .35, 3.4);            // дальний фасад
+  // ферма | цеха и цеха | зал: ворота на GATE_Y
+  for (const x of [WALL_FARM, WALL_HALL]) {
+    segX(x, 0, GATE_Y[0] - 1, LOW, yardMat, false);
+    segX(x, GATE_Y[GATE_Y.length - 1] + 1, GH - 1, LOW, yardMat, false);
+  }
+  // северная и южная границы цехового двора
+  segZ(0, ZONES.work.x0 - 1, ZONES.work.x1 + 1, LOW, yardMat, false);
+  segZ(GH - 1, ZONES.work.x0 - 1, ZONES.work.x1 + 1, LOW, yardMat, false);
+
+  // стены зала: юг, север (фасад) и восточная стена с входом
+  segZ(GH - 1, ZONES.hall.x0 - 1, GW - 1, LOW);
+  segX(GW - 1, 0, ENTRY_Y[0] - 1, LOW);
+  segX(GW - 1, ENTRY_Y[ENTRY_Y.length - 1] + 1, GH - 1, LOW);
+  const FAC = (ZONES.hall.x0 + GW) / 2;
+  wall(FAC, .5, GW - ZONES.hall.x0, .35, 3.4);            // дальний фасад с вывеской
+
+  // стена между залом и служебными помещениями: дверь на BACK_DOOR_X
+  segZ(WALL_BACK, ZONES.back.x0, BACK_DOOR_X[0] - 1, 2.4);
+  segZ(WALL_BACK, BACK_DOOR_X[BACK_DOOR_X.length - 1] + 1, GW - 1, 2.4);
+  const doorTop = new THREE.Mesh(new THREE.BoxGeometry(BACK_DOOR_X.length, .5, .3), wallMat);
+  doorTop.position.set((BACK_DOOR_X[0] + BACK_DOOR_X[BACK_DOOR_X.length - 1] + 1) / 2, 2.15, WALL_BACK + .5);
+  add(doorTop);
+  const backSign = makeSign('СЛУЖЕБНОЕ · ПОСТОРОННИМ НЕЛЬЗЯ', 3.4, .4, null, '#ffca7a', 52);
+  backSign.position.set((BACK_DOOR_X[0] + BACK_DOOR_X[BACK_DOOR_X.length - 1] + 1) / 2, 2.15, WALL_BACK + .34);
+  backSign.rotation.y = Math.PI; add(backSign);
 
   // витрина и вывеска
   const glass = new THREE.MeshStandardMaterial({ color: 0xbfe0ff, transparent: true, opacity: .32, roughness: .1, metalness: .1 });
   glassMats.push(glass);
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     const g = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.8, .1), glass);
-    g.position.set(20.2 + i * 2.2, 1.6, .66); add(g);
+    g.position.set(ZONES.hall.x0 + 1.2 + i * 2.2, 1.6, .66); add(g);
   }
-  const board = new THREE.Mesh(new THREE.BoxGeometry(10, 1.6, .35),
+  const board = new THREE.Mesh(new THREE.BoxGeometry(12, 1.7, .35),
     new THREE.MeshStandardMaterial({ color: 0x1d2432, roughness: .6 }));
-  board.position.set(25.5, 4.3, .5); board.castShadow = true; add(board);
-  const sign = makeSign(G.brand.name, 9.4, 1.5, null, '#ffd75e', 82);
-  sign.position.set(25.5, 4.3, .78); add(sign);
+  board.position.set(FAC, 4.4, .5); board.castShadow = true; add(board);
+  const sign = makeSign(G.brand.name, 11.2, 1.6, null, '#ffd75e', 82);
+  sign.position.set(FAC, 4.4, .78); add(sign);
   signRef = sign; signBoardRef = board;
-  const sign2 = makeSign('ФЕРМА · ЦЕХ · ПРИЛАВОК · 24/7', 8, .8, null, '#8fd0ff', 58);
-  sign2.position.set(25.5, 3.45, .78); add(sign2);
+  const sign2 = makeSign('ФЕРМА · ЦЕХ · ПРИЛАВОК · 24/7', 9, .8, null, '#8fd0ff', 58);
+  sign2.position.set(FAC, 3.45, .78); add(sign2);
 
-  // вход с раздвижными дверями
+  // вход с раздвижными дверями (восточная стена, проём ENTRY_Y)
+  const EX = GW - .5, EZ = (ENTRY_Y[0] + ENTRY_Y[ENTRY_Y.length - 1] + 1) / 2;
   for (const s of [-1, 1]) {
     const d = new THREE.Mesh(new THREE.BoxGeometry(.14, 1.9, .95), glass);
-    d.position.set(33.5, .95, 10.5 + s * .55);
+    d.position.set(EX, .95, EZ + s * .55);
     d.userData.side = s; d.userData.z0 = d.position.z;
     doors.push(add(d));
   }
   const arch = new THREE.Mesh(new THREE.BoxGeometry(.45, .3, 2.6), trimMat);
-  arch.position.set(33.5, 2.05, 10.5); arch.castShadow = true; add(arch);
+  arch.position.set(EX, 2.05, EZ); arch.castShadow = true; add(arch);
   for (const s of [-1, 1]) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(.4, 2.1, .3), wallMat);
-    p.position.set(33.5, 1.05, 10.5 + s * 1.45); p.castShadow = true; add(p);
+    p.position.set(EX, 1.05, EZ + s * 1.45); p.castShadow = true; add(p);
   }
   const entry = makeSign('ВХОД', 1.6, .4, null, '#ffffff', 90);
-  entry.position.set(33.79, 2.05, 10.5); entry.rotation.y = Math.PI / 2; add(entry);
+  entry.position.set(EX + .29, 2.05, EZ); entry.rotation.y = Math.PI / 2; add(entry);
 
   // постеры на фасаде
   [['🍅 −30%', '#e4453a'], ['🥩 СВЕЖЕЕ', '#8f4b38'], ['🥛 ФЕРМА', '#4f8cff'], ['🍕 НОВИНКА', '#e07a3c']]
     .forEach(([txt, col], i) => {
       const bgm = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.05, .08),
         new THREE.MeshStandardMaterial({ color: col, roughness: .7 }));
-      bgm.position.set(20.6 + i * 3.4, 1.9, .72); add(bgm);
+      const px = ZONES.hall.x0 + 1.8 + i * 4.4;
+      bgm.position.set(px, 1.9, .72); add(bgm);
       const s = makeSign(txt, 1.35, .5, null, '#ffffff', 80);
-      s.position.set(20.6 + i * 3.4, 1.9, .77); add(s);
+      s.position.set(px, 1.9, .77); add(s);
     });
 
   // подвесные указатели над рядами полок
-  ['🥬 СВЕЖЕЕ', '🥛 МОЛОЧНОЕ', '🍖 ГОРЯЧЕЕ', '🎂 ДЕСЕРТЫ'].forEach((txt, i) => {
-    const x = 21 + i * 2;
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(1.7, .5, .1),
+  // подвесные указатели над каждым рядом полок
+  ['🥬 СВЕЖЕЕ', '🥛 МОЛОЧНОЕ', '🍖 ГОРЯЧЕЕ', '🎂 ДЕСЕРТЫ', '🧃 НАПИТКИ'].forEach((txt, i) => {
+    const x = 32.5 + i * 3;
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(2.2, .55, .1),
       new THREE.MeshStandardMaterial({ color: 0x2b6cff, roughness: .5 }));
-    bar.position.set(x, 3.15, 5); add(bar);
-    const s = makeSign(txt, 1.6, .42, null, '#ffffff', 64);
-    s.position.set(x, 3.15, 5.07); add(s);
+    bar.position.set(x, 3.15, 6.5); add(bar);
+    const s = makeSign(txt, 2.1, .46, null, '#ffffff', 64);
+    s.position.set(x, 3.15, 6.57); add(s);
     const rod = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .8, 6),
       new THREE.MeshStandardMaterial({ color: 0x9aa5b5 }));
-    rod.position.set(x, 3.55, 5); add(rod);
+    rod.position.set(x, 3.55, 6.5); add(rod);
   });
 
   // заборы огорода и загона
@@ -250,10 +282,14 @@ function buildWorld() {
       }
     }
   };
-  fenceRun(.5, .5, 1, 0, 10);        // север огорода
-  fenceRun(.5, .5, 0, 1, 21);        // запад (весь бок)
-  fenceRun(.5, 21.5, 1, 0, 10);      // юг загона
-  fenceRun(.5, 12.5, 1, 0, 8);       // забор между огородом и загоном (калитка у x=9)
+  fenceRun(.5, .5, 1, 0, WALL_FARM);                        // север огорода
+  fenceRun(.5, .5, 0, 1, GH - 1);                           // запад (весь бок)
+  fenceRun(.5, GH - .5, 1, 0, WALL_FARM);                   // юг загона
+  fenceRun(.5, FENCE_PEN + .5, 1, 0, PEN_GATE_X[0] - 1);    // забор огород | загон, калитка у ворот
+  // калитка: створка на петлях, чтобы проём читался как проход, а не как дыра в заборе
+  const gate = new THREE.Mesh(new THREE.BoxGeometry(1.8, .8, .1), fenceMat);
+  gate.position.set(PEN_GATE_X[0] + .4, .5, FENCE_PEN + .5);
+  gate.rotation.y = -.5; gate.castShadow = true; add(gate);
 
   // таблички зон
   const zoneSign = (txt, x, z, col) => {
@@ -266,9 +302,10 @@ function buildWorld() {
     const s = makeSign(txt, 2.3, .5, null, '#ffffff', 70);
     s.position.set(x, 1.8, z + .06); add(s);
   };
-  zoneSign('🌱 ОГОРОД', 5, 11.6, 0x3f8f43);
-  zoneSign('🐄 ЗАГОН', 5, 20.4, 0x8a6238);
-  zoneSign('🍳 ЦЕХА', 14, 20.4, 0x546074);
+  zoneSign('🌱 ОГОРОД', 8, FENCE_PEN - .8, 0x3f8f43);
+  zoneSign('🐄 ЗАГОН', 8, GH - 1.4, 0x8a6238);
+  zoneSign('🍳 ЦЕХА', 23, GH - 1.4, 0x546074);
+  zoneSign('📦 ПОГРУЗКА', 23, 1.6, 0x6b7484);
 
   // фонари
   const lampAt = (x, z) => {
@@ -284,35 +321,69 @@ function buildWorld() {
     const pl = new THREE.PointLight(0xffdca0, 0, 13); pl.position.set(x, 2.9, z); add(pl);
     lamps.push({ body, pl });
   };
-  [[19.4, 3], [19.4, 18], [30, 3], [30, 18], [25.5, 10.5], [11.4, 3], [11.4, 18],
-  [1.4, 3], [1.4, 18], [35.5, 10.5]].forEach(([x, z]) => lampAt(x, z));
+  // фонари: по одному на каждый проход, чтобы ночью не оставалось тёмных углов
+  [[WALL_FARM + 1.4, 4], [WALL_FARM + 1.4, 15], [WALL_FARM + 1.4, 26],
+  [WALL_HALL + 1.4, 4], [WALL_HALL + 1.4, 15], [WALL_HALL + 1.4, 26],
+  [37, 4], [37, 15], [44.5, 6], [44.5, 19],
+  [1.4, 4], [1.4, 15], [1.4, 26], [8, 8], [8, 22],
+  [GW + 2, 8], [GW + 2, 22]].forEach(([x, z]) => lampAt(x, z));
 
-  // реквизит
-  for (const [x, z] of [[-2.5, 4], [-3, 12], [-2.5, 19], [6, -2.5], [16, -2.5], [30, -2.5], [36, 3], [36, 19], [-4, 25], [4, 25]]) {
+  // реквизит снаружи и по зонам
+  for (const [x, z] of [[-3, 5], [-3.5, 14], [-3, 22], [-3, 29], [6, -3], [18, -3], [30, -3], [42, -3],
+  [GW + 12, 6], [GW + 12, 20], [8, GH + 3], [20, GH + 3], [34, GH + 3]]) {
     const t = makeTree(); t.position.set(x, 0, z); add(t);
   }
-  for (const [x, z] of [[9.4, 2.5], [9.4, 9], [1.6, 6], [1.6, 15.5], [9.4, 19]]) {
+  for (const [x, z] of [[16.4, 3], [16.4, 8], [1.6, 6], [1.6, 26], [16.4, 26], [16.4, 20]]) {
     const b = makeBush(); b.position.set(x, 0, z); add(b);
   }
-  for (const [x, z] of [[11.6, 1.6], [12.4, 1.6], [11.6, 20.4], [17, 1.6]]) {
+  // цеховой двор: тара у стен, не мешает проходам
+  for (const [x, z] of [[18.4, 26.5], [18.4, 27.4], [27.6, 26.5], [27.6, 1.6], [18.4, 1.6], [19.2, 1.6]]) {
     const c = makeCrate(); c.position.set(x, 0, z); c.rotation.y = Math.random(); add(c);
   }
-  for (const [x, z] of [[1.8, 13.6], [2.6, 13.6], [1.8, 19.6]]) {
+  const pal = makePallet(); pal.position.set(26.5, 0, 27.2); add(pal);
+  const pal2 = makePallet(); pal2.position.set(20.8, 0, 27.2); pal2.rotation.y = .3; add(pal2);
+  // загон: сено, поилки — в южной полосе, специально оставленной свободной
+  for (const [x, z] of [[2, GH - 2.4], [3, GH - 2.4], [2.5, GH - 1.4], [14.5, 26]]) {
     const h = makeHay(); h.position.set(x, 0, z); add(h);
   }
-  const trough = makeTrough(); trough.position.set(8.4, 0, 13.6); add(trough);
-  const car = makeCar(0xe4453a); car.position.set(38.5, 0, 7); car.rotation.y = Math.PI / 2; add(car);
-  const car2 = makeCar(0x4f8cff); car2.position.set(38.5, 0, 14); car2.rotation.y = Math.PI / 2; add(car2);
-  for (let i = 0; i < 5; i++) {
+  for (const [x, z] of [[15.4, 17.5], [15.4, 22.5], [5.5, GH - 1.6]]) {
+    const tr = makeTrough(); tr.position.set(x, 0, z); add(tr);
+  }
+
+  /* ---------- служебные помещения ----------
+     Склад с холодильником и стеллажами, погрузка, кабинет и уголок персонала.
+     Играть тут не нужно, но магазин без подсобки выглядит недостроенным. */
+  const backZ = ZONES.back;
+  for (let i = 0; i < 4; i++) {
+    const r = makeRack(); r.position.set(31 + i * 1.7, 0, backZ.y0 + .6); add(r);
+  }
+  const fr = makeFridgeDoor(); fr.position.set(39.5, 0, backZ.y0 + .3); add(fr);
+  const frSign = makeSign('❄ ХОЛОД', 1.3, .34, null, '#9fe4ff', 60);
+  frSign.position.set(39.5, 1.75, backZ.y0 + .48); add(frSign);
+  const desk = makeDesk(); desk.position.set(43.5, 0, backZ.y0 + 1.2); desk.rotation.y = Math.PI; add(desk);
+  const deskSign = makeSign('🗂 КАБИНЕТ', 1.6, .36, null, '#ffd75e', 58);
+  deskSign.position.set(43.5, 2, backZ.y0 - .35); add(deskSign);
+  const lock = makeLockers(); lock.position.set(46, 0, backZ.y0 + .4); lock.rotation.y = -Math.PI / 2; add(lock);
+  const cool = makeCooler(); cool.position.set(45.6, 0, backZ.y0 + 2.4); add(cool);
+  for (const [x, z] of [[33, backZ.y1 - .4], [34, backZ.y1 - .4], [36.5, backZ.y1 - .5]]) {
+    const c = makeCrate(); c.position.set(x, 0, z); c.rotation.y = Math.random(); add(c);
+  }
+  const pal3 = makePallet(); pal3.position.set(31.5, 0, backZ.y1 - .5); add(pal3);
+
+  // парковка: машины покупателей и тележки у входа
+  const car = makeCar(0xe4453a); car.position.set(GW + 2.5, 0, 8); car.rotation.y = Math.PI / 2; add(car);
+  const car2 = makeCar(0x4f8cff); car2.position.set(GW + 2.5, 0, 12); car2.rotation.y = Math.PI / 2; add(car2);
+  const car3 = makeCar(0xf0b429); car3.position.set(GW + 8.5, 0, 17); car3.rotation.y = -Math.PI / 2; add(car3);
+  for (let i = 0; i < 6; i++) {
     const c = makeCart();
-    c.position.set(32.4, 0, 6.4 + i * .36); add(c);
+    c.position.set(46.6, 0, DOOR.y + 2.2 + i * .36); add(c);
   }
 
   // небо: купол + солнце/луна + облака + звёзды
-  const skyGeo = new THREE.SphereGeometry(150, 24, 16);
+  const skyGeo = new THREE.SphereGeometry(190, 24, 16);
   skyMat = new THREE.MeshBasicMaterial({ color: 0x9fd0ff, side: THREE.BackSide, fog: false, depthWrite: false });
   skinMaterial(skyMat, 'sky.jpg', [3, 1]);      // нарисованные облака; цвет продолжит красить небо по времени суток
-  skyDome = new THREE.Mesh(skyGeo, skyMat); skyDome.position.set(17, 0, 10); add(skyDome);
+  skyDome = new THREE.Mesh(skyGeo, skyMat); skyDome.position.set(GW / 2, 0, GH / 2); add(skyDome);
 
   sunDisc = new THREE.Mesh(new THREE.SphereGeometry(3.2, 16, 12),
     new THREE.MeshBasicMaterial({ color: 0xfff3c4, fog: false }));
@@ -322,13 +393,13 @@ function buildWorld() {
   const sp = [];
   for (let i = 0; i < 260; i++) {
     const th = Math.random() * Math.PI * 2, ph = Math.random() * Math.PI * .45;
-    sp.push(17 + Math.cos(th) * Math.cos(ph) * 120, Math.sin(Math.PI / 2 - ph) * 120, 10 + Math.sin(th) * Math.cos(ph) * 120);
+    sp.push(GW / 2 + Math.cos(th) * Math.cos(ph) * 150, Math.sin(Math.PI / 2 - ph) * 150, GH / 2 + Math.sin(th) * Math.cos(ph) * 150);
   }
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
   starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0, fog: false });
   add(new THREE.Points(starGeo, starMat));
 
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 12; i++) {
     const c = new THREE.Group();
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0x9fb8d8, emissiveIntensity: .12 });
     for (let j = 0; j < 4; j++) {
@@ -336,7 +407,7 @@ function buildWorld() {
       s.position.set(j * 2 - 3 + Math.random(), Math.random() * .8, Math.random() * 1.6 - .8);
       c.add(s);
     }
-    c.position.set(-30 + Math.random() * 110, 26 + Math.random() * 10, -30 + Math.random() * 90);
+    c.position.set(-40 + Math.random() * (GW + 80), 52 + Math.random() * 14, -40 + Math.random() * (GH + 80));
     c.scale.setScalar(.8 + Math.random());
     clouds.push(c); add(c);
   }

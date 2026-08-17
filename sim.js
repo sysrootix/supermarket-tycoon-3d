@@ -10,7 +10,7 @@ const G = {
   brand: { name: 'МОЙ СУПЕРМАРКЕТ', wall: 0, trim: 0, floor: 0 },
   stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, spoiled: 0, orders: 0, stolen: 0, caught: 0, supplies: 0, byItem: {}, daily: [] },
 };
-const player = { x: START.x, y: START.y, carry: [], act: 0, speed: 3.7, moving: 0, dir: 0 };
+const player = { x: START.x, y: START.y, carry: [], act: 0, speed: 4.7, moving: 0, dir: 0 };
 const regs = [];
 const emit = (o) => G.ev.push(o);
 
@@ -20,10 +20,11 @@ const idx = (x, y) => y * GW + x;
 const inb = (x, y) => x >= 0 && y >= 0 && x < GW && y < GH;
 
 function baseWall(x, y) {
-  if (x === 0 || y === 0 || y === GH - 1) return true;
-  if (x === GW - 1) return !(y === 10 || y === 11);       // вход в магазин
-  if (x === 10 || x === 18) return !(y === 10 || y === 11); // ворота между зонами
-  if (y === 12 && x >= 1 && x <= 9) return x !== 9;         // забор загона с калиткой
+  if (x === 0 || y === 0 || y === GH - 1) return true;                 // внешний контур
+  if (x === GW - 1) return !ENTRY_Y.includes(y);                       // вход в магазин
+  if (x === WALL_FARM || x === WALL_HALL) return !GATE_Y.includes(y);   // ворота между зонами
+  if (y === FENCE_PEN && x < WALL_FARM) return !PEN_GATE_X.includes(x); // забор загона с калиткой
+  if (y === WALL_BACK && x > WALL_HALL) return !BACK_DOOR_X.includes(x); // дверь в служебку
   return false;
 }
 function rebuild() {
@@ -91,14 +92,14 @@ function walkTo(e, tx, ty, arrive, dt) {
 /* ---------- модификаторы ---------- */
 const timeMul = () => Math.pow(0.9, G.upg.fert);
 const priceMul = () => 1 + 0.05 * G.upg.ads;
-const carryCap = () => 6 + 2 * G.upg.bag;
-const playerSpeed = () => 3.7 * Math.pow(1.12, G.upg.boots);
+const carryCap = () => 8 + 2 * G.upg.bag;
+const playerSpeed = () => 4.7 * Math.pow(1.12, G.upg.boots);
 const serveRate = () => 1.1 * Math.pow(1.25, G.upg.register);
 const near = (a, bx, by, r) => Math.hypot(a.x - (bx + .5), a.y - (by + .5)) < r;
 const REACH = 1.2;
 /* характеристики смены — растут апгрейдами */
-const staffCarry = () => 6 + 3 * (G.upg.crewBag || 0);
-const staffSpeed = () => 3.0 * Math.pow(1.12, G.upg.crewFeet || 0);
+const staffCarry = () => 8 + 3 * (G.upg.crewBag || 0);
+const staffSpeed = () => 3.9 * Math.pow(1.12, G.upg.crewFeet || 0);
 const staffAct = () => .18 * Math.pow(.85, G.upg.crewSkill || 0);
 const salaryMul = () => Math.max(.4, 1 - .12 * (G.upg.payroll || 0));
 const salaryOf = (role) => STAFF[role].salary * salaryMul();
@@ -352,8 +353,9 @@ function playerInteract(dt) {
 
 /* ---------- кассы ---------- */
 const QLEN = 3;
-const regQueueTile = (i, k) => ({ x: 30, y: REG_SLOTS[i].y + k });
-const regWorkerTile = (i) => ({ x: 32, y: REG_SLOTS[i].y });
+/* Покупатель встаёт слева от кассы, кассир — справа, у самого выхода. */
+const regQueueTile = (i, k) => ({ x: REG_SLOTS[i].x - 1, y: REG_SLOTS[i].y + k });
+const regWorkerTile = (i) => ({ x: REG_SLOTS[i].x + 1, y: REG_SLOTS[i].y });
 function syncRegs() { while (regs.length < G.regs) regs.push({ i: regs.length, q: [], t: 0, busy: 0 }); }
 
 function updateRegs(dt) {
@@ -398,7 +400,7 @@ let spawnT = 4;
 const stockedShelves = () => G.shelves.filter(s => s.n - s.res > 0);
 
 /* Покупатели приезжают на парковку и идут ко входу пешком. */
-const PARKING = () => ({ x: 36.5 + Math.random() * 4, y: 5 + Math.random() * 11 });
+const PARKING = () => ({ x: GW + 2.5 + Math.random() * 5, y: 7 + Math.random() * 16 });
 
 function spawnCustomer() {
   if (G.customers.length > 16 || !stockedShelves().length) return;
@@ -406,7 +408,7 @@ function spawnCustomer() {
   const vip = Math.random() < .08 + G.rep / 1000;
   const from = PARKING();
   G.customers.push({
-    x: from.x, y: from.y, home: from, speed: (vip ? 2.1 : 1.85) + Math.random() * .6,
+    x: from.x, y: from.y, home: from, speed: (vip ? 2.7 : 2.4) + Math.random() * .7,
     skin: SKIN[(Math.random() * SKIN.length) | 0], shirt: vip ? 0x2b2f45 : SHIRT[(Math.random() * SHIRT.length) | 0],
     hair: HAIR[(Math.random() * HAIR.length) | 0],
     h: .92 + Math.random() * .16, vip,
@@ -519,7 +521,7 @@ function updateCustomer(c, dt) {
 /* ---------- персонал ---------- */
 function hire(role) {
   G.staff.push({
-    role, x: START.x, y: START.y, speed: 3.0, carry: [], dest: null, src: null,
+    role, x: START.x, y: START.y, speed: 3.9, carry: [], dest: null, src: null,
     reg: null, t: 0, hauling: false, moving: 0, dir: 0, id: Math.random(),
   });
   assignRegs();
@@ -1278,7 +1280,7 @@ function simUpdate(dt, input) {
   for (const s of G.staff) { s.speed = staffSpeed(); updateStaff(s, dt); }
 
   spawnT -= dt * (1 + .25 * G.upg.ads) * (0.4 + G.rep / 100);
-  if (spawnT <= 0) { spawnT = 3.2 + Math.random() * 2.5; spawnCustomer(); }
+  if (spawnT <= 0) { spawnT = 2.6 + Math.random() * 2.1; spawnCustomer(); }
 
   updateSpoilage(dt);
   updateOrder(dt);

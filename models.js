@@ -561,6 +561,73 @@ function makeCrate() {
   return g;
 }
 
+/* ---------- служебные помещения ----------
+   Склад, погрузка, кабинет и комната персонала: только реквизит, играть тут не надо,
+   но магазин без подсобки выглядит недостроенным. */
+function makeRack() {                        // стеллаж с коробками
+  const g = new THREE.Group();
+  const post = 0x6b7484;
+  for (const x of [-.62, .62]) for (const z of [-.24, .24]) g.add(at(box(.08, 2.1, .08, post), x, 1.05, z));
+  for (const y of [.42, 1.06, 1.7]) {
+    g.add(at(box(1.4, .07, .58, 0x8d97a8), 0, y, 0));
+    const n = 1 + ((Math.random() * 3) | 0);
+    for (let i = 0; i < n; i++) {
+      const c = [0xb98a52, 0xc79a63, 0xa87b48][(Math.random() * 3) | 0];
+      g.add(at(box(.34, .28, .38, c), -.45 + i * .45, y + .18, 0));
+    }
+  }
+  return g;
+}
+function makePallet() {                      // поддон с мешками
+  const g = new THREE.Group();
+  g.add(at(box(1.2, .12, .9, 0x9a7b4f), 0, .06, 0));
+  for (const z of [-.28, .28]) g.add(at(box(1.2, .07, .16, 0x8a6238), 0, .16, z));
+  for (let i = 0; i < 3; i++) {
+    const sack = sph(.3, [0xe8dcc0, 0xd9cbaa, 0xefe6d2][i], { roughness: .95 });
+    sack.scale.set(1.5, .8, 1.1);
+    g.add(at(sack, -.28 + i * .28, .3 + (i % 2) * .3, (i % 2 ? .1 : -.1)));
+  }
+  return g;
+}
+function makeDesk() {                        // стол с монитором и стулом
+  const g = new THREE.Group();
+  g.add(at(box(1.3, .07, .7, 0xb98a52), 0, .74, 0));
+  for (const x of [-.58, .58]) for (const z of [-.28, .28]) g.add(at(box(.07, .74, .07, 0x8a6238), x, .37, z));
+  g.add(at(box(.5, .34, .04, 0x1d2432), 0, .96, -.2));
+  g.add(at(box(.16, .06, .1, 0x2f3a4d), 0, .79, -.2));
+  const ch = new THREE.Group();
+  ch.add(at(box(.44, .07, .44, 0x2b6cff), 0, .44, 0));
+  ch.add(at(box(.44, .5, .07, 0x2b6cff), 0, .68, -.2));
+  ch.add(at(cyl(.05, .05, .44, 0x6b7484, 8), 0, .22, 0));
+  ch.add(at(cyl(.22, .22, .06, 0x3a4152, 10), 0, .03, 0));
+  ch.position.set(0, 0, .62);
+  g.add(ch);
+  return g;
+}
+function makeLockers() {                     // шкафчики персонала
+  const g = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    g.add(at(box(.56, 1.7, .5, 0x4f6b9a), i * .6, .85, 0));
+    g.add(at(box(.06, .1, .04, 0xd7e2f2), i * .6 + .2, 1.0, .26));
+    g.add(at(box(.4, .05, .02, 0x2b3a55), i * .6, 1.45, .26));
+  }
+  return g;
+}
+function makeCooler() {                      // кулер с водой
+  const g = new THREE.Group();
+  g.add(at(box(.42, .95, .42, 0xe9eef6), 0, .48, 0));
+  g.add(at(cyl(.19, .21, .48, 0x8fd0ff, 12, { transparent: true, opacity: .75 }), 0, 1.2, 0));
+  g.add(at(box(.12, .12, .1, 0x2b6cff), 0, .62, .24));
+  return g;
+}
+function makeFridgeDoor() {                  // морозильная камера на складе
+  const g = new THREE.Group();
+  g.add(at(box(1.8, 2.2, .35, 0xc9d4e2), 0, 1.1, 0));
+  g.add(at(box(1.5, 1.9, .06, 0x9fb4cc), 0, 1.1, .2));
+  g.add(at(box(.1, .5, .08, 0x6b7484), .55, 1.1, .26));
+  return g;
+}
+
 /* Текстовая табличка (вывеска, ценники). Текстуры кешируются по содержимому —
    ценники на полках меняются часто, каждый раз рисовать холст дорого. */
 const signCache = new Map();
