@@ -185,11 +185,20 @@ function updateBuilding(b, dt) {
     emit({ t: 'produce', x: b.x + .5, y: b.y + .5, item: d.out });
   }
 }
+/* Сколько порций этого ингредиента уже лежит в цехе. */
+const portions = (b, k) => (b.stock[k] || 0) / DEF[b.t].in[k];
+const minPortions = (b) => Math.min(...Object.keys(DEF[b.t].in).map(k => portions(b, k)));
+
+/* Цех принимает сырьё, только если им не набит впрок: иначе можно засыпать
+   его огурцами, пока он ждёт помидор, и «лишнее» поедет в зал. */
 function acceptsInput(b, item) {
   const d = DEF[b.t];
   if (!d.in || !d.in[item]) return false;
-  return (b.stock[item] || 0) < d.in[item] * 2;   // без запасания впрок — иначе полки голодают
+  const have = portions(b, item);
+  return have < 3 && have <= minPortions(b) + 1;
 }
+/* Этого ингредиента цеху не хватает больше всего. */
+const isScarce = (b, item) => DEF[b.t].in && DEF[b.t].in[item] && portions(b, item) <= minPortions(b);
 
 /* ---------- игрок ---------- */
 function movePlayer(dx, dy, dt) {
@@ -453,13 +462,14 @@ const POLICY = {
   },
   field: {
     n: 'Участок: огород', e: '🌱', src: 'field', dest: 'work',
-    d: 'Снимает урожай с огорода и везёт в цеха. Цеха забиты — выкладывает на полку. ' +
-      'Если на участке совсем нет работы, помогает остальным, а не стоит без дела.',
+    d: 'Снимает урожай с огорода и возит строго в цеха — в зал сырьё не сливает. ' +
+      'Подвозит тот ингредиент, которого цеху не хватает, а если цех встал с полным выходом, ' +
+      'сам выносит готовое в зал. Когда на участке совсем нечего делать — помогает остальным.',
   },
   pen: {
     n: 'Участок: загон', e: '🐄', src: 'pen', dest: 'work',
-    d: 'Обслуживает загон: молоко, яйца и мясо уходят в цеха, излишки — на полку. ' +
-      'Простаивать не будет: без работы переключится на другой участок.',
+    d: 'Обслуживает загон: молоко, яйца и мясо идут строго в цеха. ' +
+      'Возит дефицитный ингредиент, разгружает вставшие цеха, а без работы помогает смене.',
   },
   work: {
     n: 'Цеха → полки', e: '🍳', src: 'work', dest: 'shelf',
@@ -472,12 +482,19 @@ const POLICY = {
   },
 };
 const POL = (pol) => POLICY[pol] || POLICY.value;
+/* цех встал: выход забит, пока не разгрузим — переработка не идёт */
+const jammed = (b) => !!DEF[b.t].in && b.out.length >= bCap(b);
+/* товар, который вообще ждёт хоть какой-то цех (даже если сейчас он полон) */
+const wantsItem = (item) => G.buildings.some(b => DEF[b.t].in && DEF[b.t].in[item]);
+
 /* можно ли этому грузчику брать товар отсюда */
 function srcAllowed(b, pol) {
   const src = POL(pol).src;
   if (src === 'any') return true;
   if (src === 'work') return !!DEF[b.t].in;
-  return DEF[b.t].zone === src && !DEF[b.t].in;
+  // участковый работает по своей зоне и вдобавок разгружает вставшие цеха,
+  // иначе готовое зависает в цехе, вход не расходуется и сырьё некуда девать
+  return (DEF[b.t].zone === src && !DEF[b.t].in) || jammed(b);
 }
 const policyOf = (s) => s.policy || G.policy || 'value';
 /* Сколько товара сейчас в зале и сколько там должно лежать.
@@ -523,6 +540,9 @@ function destOk(d, item, pol) {
 function findDest(item, pol) {
   const use = bestUse(item, pol);
   if (use && use.kind === 'work') return use.b;
+  // участковый не ищет полку для сырья, которое ждут цеха: пусть лучше
+  // возит другой ингредиент или ждёт, чем сливает переработку в зал
+  if (POL(pol).dest === 'work' && wantsItem(item)) return null;
   let empty = null;
   for (const sh of G.shelves) {
     if (sh.item === item && sh.n < shelfCap(sh)) return sh;
@@ -544,6 +564,7 @@ function jobValue(b, pol) {
   const use = bestUse(item, pol);
   if (!use) return -1;
   let v = use.v;
+  if (use.kind === 'work' && use.b && isScarce(use.b, item)) v *= 1.6;   // цех ждёт именно это
   if (d.in && b.out.length >= bCap(b)) v *= 1.8;              // цех встал, пока не разгрузим
   if (hallLow()) v *= use.kind === 'shelf' ? 2.4 : .5;      // полупустой зал важнее переработки
   if (storeEmpty() && use.kind === 'shelf') v *= 2;         // совсем пусто — бегом на полку
@@ -629,9 +650,14 @@ function updateStaff(s, dt) {
   // фаза доставки: везём весь груз в одну точку, пересчитываем цель только если она заполнилась
   releaseSrc(s);
   if (!destOk(j.dest, j.item, pol)) {
-    j.dest = findDest(j.item, pol) || findDest(j.item, 'shelves');
-    if (!j.dest) { s.moving = 0; s.t = 0; return; }
+    j.dest = findDest(j.item, pol);
+    // участковый не тащит в зал то, что ждут цеха: лучше подождать, пока освободится.
+    // Но если ожидание затянулось, товар всё же уходит на полку — иначе смена встанет.
+    const strict = POL(pol).dest === 'work' && wantsItem(j.item);
+    if (!j.dest && (!strict || (s.wait || 0) > 8)) j.dest = findDest(j.item, 'shelves');
+    if (!j.dest) { s.wait = (s.wait || 0) + dt; s.moving = 0; s.t = 0; return; }
   }
+  s.wait = 0;
   const d = j.dest;
   if (walkTo(s, d.x, d.y, 1, dt)) {
     s.t += dt;
@@ -657,7 +683,9 @@ function planRoute(s, pol) {
       if (!b.out.length || (b.res && b.res !== s)) continue;
       if (strict && !srcAllowed(b, pol)) continue;
       const item = b.out[b.out.length - 1];
-      const dest = findDest(item, pol) || findDest(item, 'shelves');
+      // сырьё, которое ждут цеха, участковый в зал не планирует
+      const keepForWork = POL(pol).dest === 'work' && wantsItem(item);
+      const dest = findDest(item, pol) || (keepForWork ? null : findDest(item, 'shelves'));
       if (!dest) continue;
       const v = jobValue(b, pol);
       if (v <= 0) continue;
