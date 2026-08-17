@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 <canvas id="cv"></canvas>
@@ -45,22 +45,22 @@
   </div>
 
   <div id="questCard" class="card quest">
-    <div class="qtop"><span>🎯 Задание</span><span id="qreward">+0 ₽</span></div>
+    <div class="qtop"><span id="qchapter">🎯 Задание</span><span id="qreward">+0 ₽</span></div>
     <div id="qtext">—</div>
     <div class="qbar"><i id="qfill"></i></div>
   </div>
 
   <button id="probBtn" class="probbtn hidden"><span id="probCount">0</span> ⚠️</button>
-  <div id="probPanel" class="card prob hidden"></div>
 
   <div id="toasts"></div>
 
   <div class="bottom">
     <div id="stick" class="stick"><i id="knob"></i></div>
-    <div id="bag" class="card bag">
+    <button id="bag" class="card bag">
       <div class="bagtop"><span>🎒 Рюкзак</span><span id="bagn">0/6</span></div>
       <div id="bagitems" class="bagitems"></div>
-    </div>
+      <em class="baghint">🎯 что подбирать</em>
+    </button>
     <div class="actions">
       <button class="fab shop" id="shopBtn"><span>🏪</span><em>Магазин</em></button>
     </div>
@@ -91,6 +91,9 @@
       <button id="orientBtn" class="ghost">📱 Экран</button>
       <button id="trailerBtn" class="ghost">🎬 Трейлер</button>
       <button id="statsBtn" class="ghost">📈 Статистика</button>
+      <button id="soundBtn2" class="ghost">🔊 Звук</button>
+      <button id="musicBtn2" class="ghost">🎵 Музыка</button>
+      <button id="fsBtn2" class="ghost">⛶ Во весь экран</button>
     </div>
     <button id="trackBtn" class="ghost">🎵 Выбрать музыку</button>
     <div id="trackList" class="tracklist hidden"></div>
@@ -120,6 +123,40 @@
     <h2>📈 Как идут дела</h2>
     <div id="statsBody"></div>
     <button id="statsClose">Закрыть</button>
+  </div>
+</div>
+
+<!-- Что мешает зарабатывать -->
+<div id="probWin" class="modal hidden">
+  <div class="mcard">
+    <h2>⚠️ Что мешает зарабатывать</h2>
+    <div id="probPanel" class="prob"></div>
+    <button id="probClose">Закрыть</button>
+  </div>
+</div>
+
+<!-- Новая глава -->
+<div id="chapWin" class="modal hidden">
+  <div class="mcard">
+    <h2 id="chapTitle">Глава</h2>
+    <p id="chapText"></p>
+    <button id="chapClose">Дальше</button>
+  </div>
+</div>
+
+<!-- Фильтр рюкзака -->
+<div id="takeWin" class="modal hidden">
+  <div class="mcard vid">
+    <h2>🎯 Что подбирать</h2>
+    <p class="hint">Выключенное не попадёт в рюкзак, даже если пройдёшь прямо по грядке.
+      Товар, который сейчас снимешь, подсвечен жёлтым кольцом.</p>
+    <div id="takeBody"></div>
+    <div class="mrow">
+      <button id="takeAll" class="ghost">Брать всё</button>
+      <button id="takeNone" class="ghost">Ничего</button>
+      <button id="bagDump" class="ghost">🫗 Вытряхнуть</button>
+    </div>
+    <button id="takeClose">Готово</button>
   </div>
 </div>
 
@@ -157,13 +194,13 @@
   </div>
 </div>
 
-<script src="vendor/three.min.js?v=13"></script>
-<script src="data.js?v=13"></script>
-<script src="sim.js?v=13"></script>
-<script src="audio.js?v=13"></script>
-<script src="models.js?v=13"></script>
-<script src="scene.js?v=13"></script>
-<script src="ui.js?v=13"></script>
-<script src="main.js?v=13"></script>
+<script src="vendor/three.min.js?v=14"></script>
+<script src="data.js?v=14"></script>
+<script src="sim.js?v=14"></script>
+<script src="audio.js?v=14"></script>
+<script src="models.js?v=14"></script>
+<script src="scene.js?v=14"></script>
+<script src="ui.js?v=14"></script>
+<script src="main.js?v=14"></script>
 </body>
 </html>

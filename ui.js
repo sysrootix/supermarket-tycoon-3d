@@ -15,7 +15,7 @@ addEventListener('keydown', e => {
   const c = e.code;
   if (HOLD.includes(c)) { keys[c] = 1; e.preventDefault(); }
   if (c === 'KeyB' || c === 'Tab') { toggleSheet(); e.preventDefault(); }
-  if (c === 'Escape') { $('sheet').classList.add('hidden'); $('menu').classList.add('hidden'); $('away').classList.add('hidden'); $('trailer').classList.add('hidden'); }
+  if (c === 'Escape') { for (const id of ['sheet', 'menu', 'away', 'trailer', 'takeWin', 'chapWin']) $(id).classList.add('hidden'); probOpen = false; updateProblems(); }
   if (c === 'KeyQ') cam.yaw += .25;
   if (c === 'KeyE') cam.yaw -= .25;
   if (c === 'KeyM') $('menuBtn').click();
@@ -175,8 +175,8 @@ function updateProblems() {
   $('probCount').textContent = list.length;
   btn.style.borderColor = list.some(p => p.bad === 2) ? 'rgba(255,107,107,.5)' : 'rgba(255,180,90,.45)';
 
-  if (!probOpen) { panel.classList.add('hidden'); return; }
-  panel.classList.remove('hidden');
+  $('probWin').classList.toggle('hidden', !probOpen);
+  if (!probOpen) return;
   const sig = list.map(p => p.k + p.t).join('|');
   if (sig === probSig) return;                       // не перерисовываем зря
   probSig = sig;
@@ -191,7 +191,10 @@ function updateProblems() {
     const b = document.createElement('button');
     b.className = p.bad === 2 ? 'bad2' : (p.bad === 1 ? 'bad1' : '');
     b.textContent = (p.bad === 2 ? '⛔ ' : p.bad === 1 ? '⚠️ ' : '• ') + p.t;
-    b.onclick = () => { cam.tx = p.x; cam.tz = p.y; camFocus = { x: p.x, y: p.y, t: 2.5 }; SFX.ui(); };
+    b.onclick = () => {
+      cam.tx = p.x; cam.tz = p.y; camFocus = { x: p.x, y: p.y, t: 2.5 };
+      probOpen = false; updateProblems(); SFX.ui();   // показали место — окно больше не нужно
+    };
     panel.appendChild(b);
   }
 }
@@ -216,9 +219,34 @@ function showStats() {
       `<i style="height:${Math.max(4, d.earned / max * 100)}%" title="День ${d.d}: ${fmt(d.earned)} ₽"><b>${d.d}</b></i>`).join('')}</div>`
       : '<p class="hint">График появится, когда закончится первый день.</p>'}
     <p class="hint">Что продаётся лучше всего</p>
-    <div class="top">${top.length ? top.map(([k, v]) =>
+    <div class="topitems">${top.length ? top.map(([k, v]) =>
       `<div><span>${ITEMS[k].e} ${ITEMS[k].n}</span><b>${fmt(v)}</b></div>`).join('') : '<div><span>Пока ничего</span></div>'}</div>`;
   $('statsWin').classList.remove('hidden');
+  SFX.ui();
+}
+
+/* ---------- что подбирать ----------
+   Товары показываем только те, что реально можно взять со своих построек,
+   иначе список превращается в простыню из всех 16 позиций. */
+function takeList() {
+  const out = new Set();
+  for (const b of G.buildings) if (DEF[b.t].out) out.add(DEF[b.t].out);
+  return [...out];
+}
+function renderTakes() {
+  const list = takeList();
+  $('takeBody').innerHTML = list.length
+    ? `<div class="takes">${list.map(it => {
+      const on = canTake(it);
+      return `<button data-it="${it}" class="${on ? 'on' : 'off'}"><span>${ITEMS[it].e}</span><em>${ITEMS[it].n}</em></button>`;
+    }).join('')}</div>`
+    : '<p class="hint">Пока нечего подбирать — купи грядку или загон.</p>';
+  for (const b of $('takeBody').querySelectorAll('button'))
+    b.onclick = () => { setTake(b.dataset.it, !canTake(b.dataset.it)); renderTakes(); SFX.ui(); };
+}
+function showTake() {
+  renderTakes();
+  $('takeWin').classList.remove('hidden');
   SFX.ui();
 }
 
@@ -273,7 +301,8 @@ function updateHUD(dt) {
     $('orderCard').classList.toggle('urgent', o.left < 30);
   }
 
-  const q = QUESTS[G.quest];
+  const q = QUESTS[G.quest], ch = chapterOf(G.quest);
+  $('qchapter').textContent = q ? ch.n.replace('Глава ', '🎯 Гл. ') : '🏆 Всё пройдено';
   $('qtext').textContent = q ? q.d : 'Все задания выполнены 🏆';
   $('qreward').textContent = q ? '+' + rub(q.r) : '';
   $('qfill').style.width = (G.quest / QUESTS.length * 100) + '%';
@@ -289,6 +318,8 @@ function updateHUD(dt) {
     $('bagitems').innerHTML = Object.entries(c)
       .map(([k, v]) => `<b>${ITEMS[k].e}${v > 1 ? '<i>' + v + '</i>' : ''}</b>`).join('');
   }
+  const off = Object.keys(G.noTake || {}).length;
+  $('bag').querySelector('.baghint').textContent = off ? `🎯 не беру ${off}` : '🎯 что подбирать';
 }
 function bumpMoney() {
   const m = document.querySelector('.money');
@@ -477,20 +508,33 @@ function renderStyle() {
 function renderSupply() {
   const head = document.createElement('div');
   head.className = 'grouphead';
-  head.innerHTML = `Партия — ${SUPPLY_LOT} шт. Сначала уходит в цеха, которым не хватает сырья, остаток — на полки.
-    Дороже своего производства, зато сразу: выручает, когда цепочка встала или горит заказ.`;
+  head.innerHTML = `Оптовик везёт <b>только сырьё</b> — готовую продукцию делай в цехах сам.
+    Партия ${SUPPLY_LOT} шт, уходит в цеха, которым не хватает сырья, остаток — на полки.
+    Лот <b>дороже любой розницы</b>, так что перепродавать в лоб всегда в минус:
+    партия окупается только через переработку или закрытый заказ оптовика.`;
   $('cards').appendChild(head);
 
   const need = new Set();
   for (const b of G.buildings) if (DEF[b.t].in) Object.keys(DEF[b.t].in).forEach(k => need.add(k));
-  const items = Object.keys(ITEMS).sort((a, b) =>
+  const items = Object.keys(ITEMS).filter(isRaw).sort((a, b) =>
     (need.has(b) ? 1 : 0) - (need.has(a) ? 1 : 0) || ITEMS[a].price - ITEMS[b].price);
+  if (!items.length) {
+    const p = document.createElement('div');
+    p.className = 'grouphead';
+    p.textContent = 'Сырья пока нет: купи грядку или загон, и оптовик начнёт возить то же самое.';
+    $('cards').appendChild(p);
+    return;
+  }
 
   for (const it of items) {
     const I = ITEMS[it], c = supplyCost(it);
-    itemCard(I.e, I.n, need.has(it) ? 'нужно цехам' : 'на полку',
-      `${SUPPLY_LOT} шт по ${rub(c / SUPPLY_LOT)} · в продаже ${rub(itemPrice(it))}/шт` +
-      (need.has(it) ? '<br><b style="color:#6ee7a0">этого ждут цеха</b>' : ''),
+    // считаем, во что превратится партия при переработке — видно, что возить осмысленно
+    const best = Math.max(0, ...G.buildings.filter(b => DEF[b.t].in && DEF[b.t].in[it])
+      .map(b => Math.round(itemPrice(DEF[b.t].out) * SUPPLY_LOT / DEF[b.t].in[it])));
+    itemCard(I.e, I.n, need.has(it) ? 'нужно цехам' : 'сырьё',
+      `${SUPPLY_LOT} шт по ${rub(c / SUPPLY_LOT)} · на полке ${rub(itemPrice(it))}/шт (в минус)` +
+      (best > c ? `<br><b style="color:#6ee7a0">после переработки ≈ ${rub(best)} → +${rub(best - c)}</b>`
+        : (need.has(it) ? '<br><b style="color:#6ee7a0">этого ждут цеха</b>' : '')),
       c, G.money >= c, () => buySupply(it));
   }
 }
@@ -613,7 +657,8 @@ function wireUI() {
   if (isStandalone()) $('fsBtn').style.display = 'none';   // в приложении уже полный экран
   $('menuClose').onclick = () => { $('menu').classList.add('hidden'); SFX.ui(); };
   // клик по затемнению закрывает окно (в обучении — нет, там надо дочитать)
-  for (const id of ['menu', 'away']) {
+  for (const id of ['menu', 'away', 'takeWin', 'chapWin']) {
+    // (probWin закрывается своим обработчиком — он сбрасывает probOpen)
     $(id).addEventListener('pointerdown', (e) => {
       if (e.target === $(id)) { $(id).classList.add('hidden'); SFX.ui(); }
     });
@@ -646,14 +691,23 @@ function wireUI() {
   const qLabel = () => $('qualBtn').textContent = '🎚️ Качество: ' + QN[quality];
   qLabel();
   $('qualBtn').onclick = () => { setQuality((quality + 1) % 3); qLabel(); SFX.ui(); };
-  $('soundBtn').onclick = () => { $('soundBtn').textContent = SFX.toggle() ? '🔊' : '🔇'; };
-  $('soundBtn').textContent = SFX.on ? '🔊' : '🔇';
+  // на низком экране лёжа эти кнопки прячутся из HUD, поэтому дублируются в меню
+  const sndIcon = () => {
+    $('soundBtn').textContent = SFX.on ? '🔊' : '🔇';
+    $('soundBtn2').textContent = (SFX.on ? '🔊' : '🔇') + ' Звук';
+  };
+  $('soundBtn').onclick = () => { SFX.toggle(); sndIcon(); };
+  $('soundBtn2').onclick = () => { SFX.toggle(); sndIcon(); };
+  $('fsBtn2').onclick = () => $('fsBtn').onclick();
+  sndIcon();
   const musIcon = () => {
     $('musicBtn').textContent = '🎵';
     $('musicBtn').style.opacity = MUSIC.on ? '1' : '.4';
+    $('musicBtn2').textContent = (MUSIC.on ? '🎵' : '🔕') + ' Музыка';
   };
   musIcon();
   $('musicBtn').onclick = () => { MUSIC.toggle(); musIcon(); SFX.ui(); };
+  $('musicBtn2').onclick = () => { MUSIC.toggle(); musIcon(); SFX.ui(); };
   // список тем: можно выбрать конкретную
   const renderTracks = () => {
     const box = $('trackList');
@@ -667,6 +721,16 @@ function wireUI() {
     });
   };
   $('probBtn').onclick = () => { probOpen = !probOpen; probSig = ''; updateProblems(); SFX.ui(); };
+  $('probClose').onclick = () => { probOpen = false; updateProblems(); SFX.ui(); };
+  $('probWin').addEventListener('pointerdown', (e) => {
+    if (e.target === $('probWin')) { probOpen = false; updateProblems(); SFX.ui(); }
+  });
+  $('bag').onclick = () => { showTake(); };
+  $('chapClose').onclick = () => { $('chapWin').classList.add('hidden'); SFX.ui(); };
+  $('takeClose').onclick = () => { $('takeWin').classList.add('hidden'); SFX.ui(); };
+  $('takeAll').onclick = () => { for (const it in ITEMS) setTake(it, true); renderTakes(); SFX.ui(); };
+  $('takeNone').onclick = () => { for (const it of takeList()) setTake(it, false); renderTakes(); SFX.ui(); };
+  $('bagDump').onclick = () => { player.carry.length = 0; renderTakes(); SFX.drop(); };
   $('statsBtn').onclick = () => { $('menu').classList.add('hidden'); showStats(); };
   $('statsClose').onclick = () => { $('statsWin').classList.add('hidden'); SFX.ui(); };
   $('statsWin').addEventListener('pointerdown', (e) => {
@@ -768,7 +832,7 @@ const TUT = [
   ['Твой супермаркет 🏪', 'Четыре зоны: <b>огород</b>, <b>загон</b>, <b>цеха</b> и <b>торговый зал</b>. Бегаешь сам: <b>WASD / стрелки</b> или <b>джойстик</b> на телефоне. Камера — перетаскивание, зум колесом/щипком.'],
   ['Огород и загон 🌱', 'Одинаковые грядки встают рядом, между ними всегда есть проход — подходишь и берёшь именно то, что нужно. Животные живут в отдельном загоне за забором.'],
   ['Цеха 🍳', 'Отдельный двор для переработки. Принёс мясо к грилю — получил стейк втрое дороже. Цех сам показывает, какого сырья ему не хватает.'],
-  ['Рюкзак умный 🎒', 'Набирай всё подряд и вставай в проходе — товар <b>сам разойдётся по нужным полкам</b>: картошка к картошке, мясо к мясу, а стоящий рядом цех заберёт своё сырьё. Полки, куда сейчас уйдёт груз, подсвечиваются зелёным кольцом.'],
+  ['Рюкзак умный 🎒', 'Набирай всё подряд и вставай в проходе — товар <b>сам разойдётся по нужным полкам</b>: картошка к картошке, мясо к мясу, а стоящий рядом цех заберёт своё сырьё. Полки, куда сейчас уйдёт груз, подсвечиваются зелёным кольцом, а грядка или цех, с которого сейчас снимешь товар, — <b>жёлтым</b>. Берёшь всегда с той стороны, куда смотришь, а тап по рюкзаку открывает <b>🎯 что подбирать</b>: выключенное в руки не попадёт, даже если пройдёшь прямо по грядке.'],
   ['Касса и покупатели 🛒', 'Клиент берёт товар с полки и встаёт в очередь. Встань <b>за кассу</b> — деньги пойдут. Долгая очередь злит, мусор на полу роняет репутацию — убирай его на бегу или найми уборщика.'],
   ['Смена и конвейер 🧑‍🌾', 'Каждому грузчику можно дать участок: один снимает урожай с <b>огорода</b> и везёт в цеха, второй работает по <b>загону</b>, третий возит <b>готовое из цехов</b> в зал. В режиме «Максимум прибыли» он сам считает, что выгоднее — переработать или продать (товар дня ×1.7 учитывается).'],
   ['Цены и свежесть 💲', 'Ты сам ставишь наценку на каждый товар: дороже — выше маржа, но часть покупателей пройдёт мимо. Спрос меняется по времени дня — утром берут молочку и хлеб, днём готовую еду, вечером десерты. Скоропортящееся не лежит вечно: полоска над полкой показывает свежесть, просроченное уходит в мусор и бьёт по репутации.'],

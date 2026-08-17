@@ -6,9 +6,9 @@ const G = {
   money: 250, day: 1, dayT: DAY_LEN * 0.35, rep: 100,
   buildings: [], shelves: [], staff: [], customers: [],
   regs: 1, upg: { bag: 0, boots: 0, fert: 0, register: 0, ads: 0, shelf: 0, crewBag: 0, crewFeet: 0, crewSkill: 0, payroll: 0 },
-  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value', price: {}, order: null,
+  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value', price: {}, order: null, noTake: {},
   brand: { name: 'МОЙ СУПЕРМАРКЕТ', wall: 0, trim: 0, floor: 0 },
-  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, spoiled: 0, orders: 0, stolen: 0, byItem: {}, daily: [] },
+  stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, spoiled: 0, orders: 0, stolen: 0, caught: 0, supplies: 0, byItem: {}, daily: [] },
 };
 const player = { x: START.x, y: START.y, carry: [], act: 0, speed: 3.7, moving: 0, dir: 0 };
 const regs = [];
@@ -107,10 +107,38 @@ const payroll = () => G.staff.reduce((s, x) => s + salaryOf(x.role), 0);
 const byDist = (e) => (a, b) =>
   Math.hypot(a.x + .5 - e.x, a.y + .5 - e.y) - Math.hypot(b.x + .5 - e.x, b.y + .5 - e.y);
 const inReach = (e, list, r) => list.filter(o => near(e, o.x, o.y, r || REACH)).sort(byDist(e));
-/* Забираем только у той постройки, у которой стоим (REACH),
-   а выкладываем шире (REACH_DROP) — чтобы с полным рюкзаком разложить всё
-   по соседним полкам и цехам, не бегая от одной к другой. */
+/* Радиус подбора выбран по геометрии карты: до центра соседней проходимой клетки ровно 1.0,
+   а между двумя постройками всегда 2.0 — значит 1.35 достаёт ту, у которой стоишь,
+   и физически не дотягивается до соседней. Выкладываем шире (REACH_DROP), чтобы
+   с полным рюкзаком разложить всё по соседним полкам и цехам, не бегая от одной к другой. */
+const REACH_TAKE = 1.35;
 const REACH_DROP = 3.2;
+
+/* Фильтр рюкзака: игрок сам решает, что подбирать на бегу.
+   G.noTake хранит только выключенное, поэтому старые сейвы берут всё, как раньше. */
+const canTake = (item) => !(G.noTake && G.noTake[item]);
+function setTake(item, on) {
+  G.noTake = G.noTake || {};
+  if (on) delete G.noTake[item]; else G.noTake[item] = 1;
+  save(true);
+}
+/* Постройка, у которой сейчас произойдёт подбор — одна и та же для логики и для подсветки,
+   чтобы игрок видел заранее, что именно схватит.
+   В проходе между двумя рядами обе грядки равноудалены (по 1.0), поэтому решает взгляд:
+   берём ту, что ближе к направлению движения, — так «оно берётся и это» больше не случается. */
+function pickTarget() {
+  if (player.carry.length >= carryCap()) return null;
+  const ready = inReach(player, G.buildings, REACH_TAKE)
+    .filter(b => b.out.length && canTake(b.out[b.out.length - 1]));
+  if (ready.length < 2) return ready[0] || null;
+  const fx = Math.sin(player.dir), fy = Math.cos(player.dir);
+  const score = (b) => {
+    const dx = b.x + .5 - player.x, dy = b.y + .5 - player.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return (dx * fx + dy * fy) / len;                  // 1 — прямо перед носом, −1 — за спиной
+  };
+  return ready.slice().sort((a, b) => score(b) - score(a))[0];
+}
 const shelfBonus = () => 2 * (G.upg.shelf || 0);
 /* ---------- цены и спрос ----------
    Наценку ставит игрок: дороже — выше маржа, но покупатель охотнее пройдёт мимо. */
@@ -300,20 +328,15 @@ function playerInteract(dt) {
       return;
     }
   }
-  const nearB = inReach(player, G.buildings);
-
-  if (player.carry.length < carryCap()) {
-    for (const b of nearB) {
-      if (b.out.length) {
-        const item = b.out.pop();
-        player.carry.push(item);
-        player.carry.sort();                 // одинаковое лежит рядом
-        player.act = .13;
-        G.stats.picked++; addXp(1);
-        emit({ t: 'pick', x: b.x + .5, y: b.y + .5, item, to: 'player' });
-        return;
-      }
-    }
+  const src = pickTarget();
+  if (src) {
+    const item = src.out.pop();
+    player.carry.push(item);
+    player.carry.sort();                     // одинаковое лежит рядом
+    player.act = .1;
+    G.stats.picked++; addXp(1);
+    emit({ t: 'pick', x: src.x + .5, y: src.y + .5, item, to: 'player' });
+    return;
   }
 
   // мусор под ногами убираем на ходу
@@ -463,6 +486,7 @@ function updateCustomer(c, dt) {
       const guard = G.staff.find(g => g.role === 'guard');
       if (guard && Math.hypot(guard.x - c.x, guard.y - c.y) < 7) {
         c.thief = false;
+        G.stats.caught = (G.stats.caught || 0) + 1;
         emit({ t: 'caught', x: c.x, y: c.y });
       } else {
         const value = c.basket.reduce((a, it) => a + itemPrice(it), 0);
@@ -919,6 +943,8 @@ function checkQuest() {
   if (q && q.c(G.stats, G)) {
     G.money += q.r; G.quest++;
     emit({ t: 'quest', r: q.r, d: q.d });
+    const ch = chapterAt(G.quest);            // задание закрыло главу — рассказываем следующую
+    if (ch) emit({ t: 'chapter', n: ch.n, d: ch.t });
     save();
   }
 }
@@ -934,9 +960,18 @@ function setBrand(key, val) {
 /* ---------- поставщики ----------
    Не производишь сам — купи партию. Дороже, чем растить, зато сразу и без ожидания. */
 const SUPPLY_LOT = 5;
-const supplyCost = (item) => Math.round(ITEMS[item].price * SUPPLY_LOT * 1.45 + 40);
+/* Оптовик — не лазейка, а страховка. Два ограничения держат экономику супермаркета:
+   1) везёт только сырьё (то, что растёт и добывается) — готовое делай в цехах сам;
+   2) лот дороже максимальной розницы (наценка ×1.8), поэтому перепродать в лоб убыточно —
+      партия окупается только через переработку или закрытый заказ. */
+const SUPPLY_MUL = 1.25;
+const isRaw = (item) => G.buildings.some(b => DEF[b.t].out === item && !DEF[b.t].in);
+/* Цена лота считается от ТЕКУЩЕЙ цены на полке, а не от базовой: как бы игрок ни задрал
+   наценку и что бы ни выпало товаром дня, партия всегда дороже, чем её можно продать. */
+const supplyCost = (item) => Math.round(itemPrice(item) * SUPPLY_LOT * SUPPLY_MUL + 40);
 /* Куда сгрузить партию: сначала цех, который ждёт это сырьё, потом полка. */
 function buySupply(item) {
+  if (!isRaw(item)) return false;               // готовую продукцию оптовик не привозит
   const c = supplyCost(item);
   if (G.money < c) return false;
   let left = SUPPLY_LOT;
@@ -951,6 +986,7 @@ function buySupply(item) {
   if (left === SUPPLY_LOT) return false;         // некуда сгружать — не берём деньги
   G.money -= c;
   save(true);
+  G.stats.supplies = (G.stats.supplies || 0) + 1;
   emit({ t: 'supply', item, n: SUPPLY_LOT - left, cost: c });
   return true;
 }
@@ -1129,6 +1165,7 @@ function snapshot() {
     upg: G.upg, quest: G.quest, stats: G.stats,
     level: G.level, xp: G.xp, hot: G.hot, trash: G.trash,
     policy: G.policy, sp: G.staff.map(s => s.policy || null), price: G.price, order: G.order, brand: G.brand,
+    noTake: G.noTake,
     b: G.buildings.map(b => ({ t: b.t, s: b.slot, st: b.stock, o: b.out, l: b.lvl || 1 })),
     sh: G.shelves.map(s => ({ s: s.slot, i: s.item, n: s.n })),
     st: G.staff.map(s => s.role),
@@ -1176,6 +1213,7 @@ function applySave(d) {
       level: d.level || 1, xp: d.xp || 0, hot: d.hot || 'tomato', trash: d.trash || [],
       policy: d.policy || 'value', price: d.price || {}, order: d.order || null,
       brand: Object.assign({ name: 'МОЙ СУПЕРМАРКЕТ', wall: 0, trim: 0, floor: 0 }, d.brand),
+      noTake: d.noTake || {},
     });
     // Старые сейвы хранят слоты прежней планировки — раскладываем заново по зонам.
     G.buildings = [];

@@ -88,6 +88,14 @@ function handleEvents() {
         floatText(ev.x, ev.y, '💪 попался', '#6ee7a0');
         SFX.cash();
         break;
+      case 'chapter':
+        setTimeout(() => {                 // сначала дать долететь салюту за задание
+          document.getElementById('chapTitle').textContent = ev.n;
+          document.getElementById('chapText').textContent = ev.d;
+          document.getElementById('chapWin').classList.remove('hidden');
+          SFX.quest();
+        }, 900);
+        break;
       case 'brand':
         applyBrand();
         break;

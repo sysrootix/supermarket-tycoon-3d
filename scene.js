@@ -839,7 +839,25 @@ function updateGhosts(t) {
 function renderFrame(t, dt) {
   syncWorld();
   updateGhosts(t);
-  for (const [b, m] of meshes.b) { updateBuildingMesh(b, m, t); m.pop = Math.min(1, m.pop + dt * 3.5); m.g.scale.setScalar(ease(m.pop)); }
+  // жёлтое кольцо под той постройкой, с которой сейчас снимем товар:
+  // видно заранее, что попадёт в рюкзак, и не берётся «не то»
+  const src = pickTarget();
+  for (const [b, m] of meshes.b) {
+    updateBuildingMesh(b, m, t);
+    const on = b === src;
+    if (on || m.takeRing) {
+      if (!m.takeRing) {
+        m.takeRing = new THREE.Mesh(
+          new THREE.RingGeometry(.5, .66, 22),
+          new THREE.MeshBasicMaterial({ color: 0xffd75e, transparent: true, opacity: .7, depthWrite: false }));
+        m.takeRing.rotation.x = -Math.PI / 2; m.takeRing.position.y = .07;
+        m.g.add(m.takeRing);
+      }
+      m.takeRing.visible = on;
+      if (on) m.takeRing.material.opacity = .4 + Math.abs(Math.sin(t * 5)) * .4;
+    }
+    m.pop = Math.min(1, m.pop + dt * 3.5); m.g.scale.setScalar(ease(m.pop));
+  }
   for (const [sh, m] of meshes.sh) {
     updateShelf(sh, m);
     m.pop = Math.min(1, m.pop + dt * 3.5); m.g.scale.setScalar(ease(m.pop));
