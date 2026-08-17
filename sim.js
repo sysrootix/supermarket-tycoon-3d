@@ -759,6 +759,58 @@ const freshness = (sh) => {
   return life ? Math.max(0, 1 - sh.age / life) : 1;
 };
 
+/* ---------- что не работает ----------
+   На карте 34x22 глазами всё не отследить: собираем список проблем,
+   по каждой можно сразу прыгнуть к объекту. */
+function problems() {
+  const list = [];
+  const near2 = (x, y) => ({ x, y });
+
+  // касса без кассира, а в очереди люди
+  for (const r of regs) {
+    if (r.q.length && !r.manned) {
+      const w = regWorkerTile(r.i);
+      list.push({ k: 'reg', t: `Касса без кассира — ждут ${r.q.length}`, x: w.x + .5, y: w.y + .5, bad: 2 });
+    }
+  }
+  // пустой зал / пустые полки
+  const empty = G.shelves.filter(s => !s.n);
+  if (!G.shelves.length) list.push({ k: 'shelf', t: 'Нет ни одной полки', x: START.x, y: START.y, bad: 2 });
+  else if (empty.length === G.shelves.length)
+    list.push({ k: 'shelf', t: 'Все полки пустые — покупатели не придут', x: empty[0].x + .5, y: empty[0].y + .5, bad: 2 });
+  else if (empty.length)
+    list.push({ k: 'shelf', t: `Пустых полок: ${empty.length}`, x: empty[0].x + .5, y: empty[0].y + .5, bad: 0 });
+
+  // цех стоит: нет сырья или забит выход
+  for (const b of G.buildings) {
+    const d = DEF[b.t];
+    if (!d.in) continue;
+    if (b.out.length >= bCap(b))
+      list.push({ k: 'jam', t: `${d.n}: выход забит, не разгружают`, x: b.x + .5, y: b.y + .5, bad: 1 });
+    else if (!b.working) {
+      const miss = Object.keys(d.in).filter(k => (b.stock[k] || 0) < d.in[k]).map(k => ITEMS[k].e).join('');
+      list.push({ k: 'idle', t: `${d.n}: нет сырья ${miss}`, x: b.x + .5, y: b.y + .5, bad: 1 });
+    }
+  }
+  // урожай гниёт на грядке
+  const full = G.buildings.filter(b => !DEF[b.t].in && b.out.length >= bCap(b));
+  if (full.length) list.push({ k: 'harvest', t: `Урожай не собирают: ${full.length} шт`, x: full[0].x + .5, y: full[0].y + .5, bad: 1 });
+
+  // мусор и репутация
+  if (G.trash.length >= 4)
+    list.push({ k: 'trash', t: `Мусор в зале: ${G.trash.length}`, x: G.trash[0].x, y: G.trash[0].y, bad: 1 });
+  if (G.rep < 70) list.push({ k: 'rep', t: `Репутация ${Math.round(G.rep)}% — людей приходит меньше`, x: START.x, y: START.y, bad: 2 });
+
+  // товар, который вот-вот испортится
+  const rot = G.shelves.filter(s => s.n && ITEMS[s.item] && ITEMS[s.item].life && freshness(s) < .25);
+  if (rot.length) list.push({ k: 'rot', t: `Скоро испортится: ${rot.map(s => ITEMS[s.item].e).join('')}`, x: rot[0].x + .5, y: rot[0].y + .5, bad: 1 });
+
+  // зарплата не по карману
+  if (payroll() > G.money) list.push({ k: 'pay', t: 'Денег не хватит на зарплату', x: START.x, y: START.y, bad: 2 });
+
+  return list.sort((a, b) => b.bad - a.bad);
+}
+
 /* ---------- экономика ---------- */
 // «товар дня» — выбирается из того, что магазин реально умеет производить
 function pickHot() {
@@ -768,6 +820,15 @@ function pickHot() {
 }
 
 function endDay() {
+  // запоминаем итог прошедшего дня для графика
+  const prev = G.stats.dayMark || { sold: 0, earned: 0 };
+  G.stats.daily = (G.stats.daily || []).concat([{
+    d: G.day,
+    sold: G.stats.sold - prev.sold,
+    earned: Math.round(G.stats.earned - prev.earned),
+  }]).slice(-30);
+  G.stats.dayMark = { sold: G.stats.sold, earned: G.stats.earned };
+
   G.day++;
   pickHot();
   const sal = payroll();

@@ -165,6 +165,63 @@ function drawMinimap() {
   mmx.strokeRect(.5, .5, w - 1, h - 1);
 }
 
+/* ---------- панель проблем ----------
+   Кнопка со счётчиком, по тапу — список; тап по строке ведёт камеру к объекту. */
+let probOpen = false, probSig = '';
+function updateProblems() {
+  const list = problems();
+  const btn = $('probBtn'), panel = $('probPanel');
+  btn.classList.toggle('hidden', !list.length && !probOpen);
+  $('probCount').textContent = list.length;
+  btn.style.borderColor = list.some(p => p.bad === 2) ? 'rgba(255,107,107,.5)' : 'rgba(255,180,90,.45)';
+
+  if (!probOpen) { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  const sig = list.map(p => p.k + p.t).join('|');
+  if (sig === probSig) return;                       // не перерисовываем зря
+  probSig = sig;
+  panel.innerHTML = '';
+  if (!list.length) {
+    const ok = document.createElement('div');
+    ok.className = 'ok'; ok.textContent = '✅ Всё работает: полки полны, цеха загружены, кассы заняты.';
+    panel.appendChild(ok);
+    return;
+  }
+  for (const p of list) {
+    const b = document.createElement('button');
+    b.className = p.bad === 2 ? 'bad2' : (p.bad === 1 ? 'bad1' : '');
+    b.textContent = (p.bad === 2 ? '⛔ ' : p.bad === 1 ? '⚠️ ' : '• ') + p.t;
+    b.onclick = () => { cam.tx = p.x; cam.tz = p.y; camFocus = { x: p.x, y: p.y, t: 2.5 }; SFX.ui(); };
+    panel.appendChild(b);
+  }
+}
+
+/* ---------- статистика ---------- */
+function showStats() {
+  const s = G.stats, days = (s.daily || []).slice(-14);
+  const max = Math.max(1, ...days.map(d => d.earned));
+  const top = Object.entries(s.byItem || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const body = $('statsBody');
+  body.innerHTML = `
+    <div class="stats">
+      <div><span>Всего заработано</span><b>${fmt(s.earned)} ₽</b></div>
+      <div><span>Продано товаров</span><b>${fmt(s.sold)}</b></div>
+      <div><span>Пробил лично</span><b>${fmt(s.personal || 0)}</b></div>
+      <div><span>VIP обслужено</span><b>${fmt(s.vip || 0)}</b></div>
+      <div><span>Испортилось</span><b>${fmt(s.spoiled || 0)}</b></div>
+      <div><span>Убрано мусора</span><b>${fmt(s.cleaned || 0)}</b></div>
+    </div>
+    ${days.length ? `<p class="hint">Выручка по дням (последние ${days.length})</p>
+      <div class="chart">${days.map(d =>
+      `<i style="height:${Math.max(4, d.earned / max * 100)}%" title="День ${d.d}: ${fmt(d.earned)} ₽"><b>${d.d}</b></i>`).join('')}</div>`
+      : '<p class="hint">График появится, когда закончится первый день.</p>'}
+    <p class="hint">Что продаётся лучше всего</p>
+    <div class="top">${top.length ? top.map(([k, v]) =>
+      `<div><span>${ITEMS[k].e} ${ITEMS[k].n}</span><b>${fmt(v)}</b></div>`).join('') : '<div><span>Пока ничего</span></div>'}</div>`;
+  $('statsWin').classList.remove('hidden');
+  SFX.ui();
+}
+
 /* ---------- тосты ---------- */
 function toast(msg, kind) {
   const box = $('toasts');
@@ -532,6 +589,12 @@ function wireUI() {
       box.appendChild(b);
     });
   };
+  $('probBtn').onclick = () => { probOpen = !probOpen; probSig = ''; updateProblems(); SFX.ui(); };
+  $('statsBtn').onclick = () => { $('menu').classList.add('hidden'); showStats(); };
+  $('statsClose').onclick = () => { $('statsWin').classList.add('hidden'); SFX.ui(); };
+  $('statsWin').addEventListener('pointerdown', (e) => {
+    if (e.target === $('statsWin')) { $('statsWin').classList.add('hidden'); SFX.ui(); }
+  });
   $('trailerBtn').onclick = () => { $('trailer').classList.remove('hidden'); $('trailerVid').play().catch(() => { }); SFX.ui(); };
   const closeTrailer = () => { $('trailerVid').pause(); $('trailer').classList.add('hidden'); SFX.ui(); };
   $('trailerClose').onclick = closeTrailer;

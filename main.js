@@ -94,7 +94,8 @@ function frame(now) {
   renderFrame(t, dt);
   updateHUD(dt);
   updateFloats(dt);
-  if (tick % 3 === 0) drawMinimap();          // мини-карта не нуждается в 60 fps
+  if (tick % 3 === 0) drawMinimap();
+  if (tick % 30 === 0) updateProblems();      // список проблем обновляем раз в полсекунды          // мини-карта не нуждается в 60 fps
   if (tick % 60 === 0) {                      // ночью музыка становится тише и спокойнее
     const p = G.dayT / DAY_LEN;
     MUSIC.setNight(p < .24 || p > .8);

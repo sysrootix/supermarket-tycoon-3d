@@ -790,10 +790,17 @@ function updateDayNight() {
 }
 
 /* ---------- камера ---------- */
+let camFocus = null;                 // ненадолго показать проблему на карте
 function updateCamera(dt) {
   // цель камеры — игрок, но не даём уехать за пределы карты
-  const tx = Math.max(4.5, Math.min(30, player.x));
-  const tz = Math.max(4.5, Math.min(17, player.y));
+  let fx = player.x, fy = player.y;
+  if (camFocus) {
+    camFocus.t -= dt;
+    if (camFocus.t <= 0) camFocus = null;
+    else { fx = camFocus.x; fy = camFocus.y; }
+  }
+  const tx = Math.max(4.5, Math.min(30, fx));
+  const tz = Math.max(4.5, Math.min(17, fy));
   cam.tx += (tx - cam.tx) * Math.min(1, dt * 5);
   cam.tz += (tz - cam.tz) * Math.min(1, dt * 5);
   const d = 12.5 * cam.dist, h = 13.5 * cam.dist;
