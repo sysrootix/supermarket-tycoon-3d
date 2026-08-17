@@ -6,7 +6,7 @@ const G = {
   money: 250, day: 1, dayT: DAY_LEN * 0.35, rep: 100,
   buildings: [], shelves: [], staff: [], customers: [],
   regs: 1, upg: { bag: 0, boots: 0, fert: 0, register: 0, ads: 0, shelf: 0, crewBag: 0, crewFeet: 0, crewSkill: 0, payroll: 0 },
-  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value', price: {}, order: null, noTake: {},
+  quest: 0, ev: [], trash: [], hot: 'tomato', level: 1, xp: 0, policy: 'value', price: {}, order: null, noTake: {}, riding: false,
   brand: { name: 'МОЙ СУПЕРМАРКЕТ', wall: 0, trim: 0, floor: 0 },
   stats: { sold: 0, earned: 0, picked: 0, stocked: 0, cleaned: 0, personal: 0, vip: 0, hot: 0, spoiled: 0, orders: 0, stolen: 0, caught: 0, supplies: 0, byItem: {}, daily: [] },
 };
@@ -23,7 +23,7 @@ function baseWall(x, y) {
   if (x === 0 || y === 0 || y === GH - 1) return true;                 // внешний контур
   if (x === GW - 1) return !ENTRY_Y.includes(y);                       // вход в магазин
   if (x === WALL_FARM || x === WALL_HALL) return !GATE_Y.includes(y);   // ворота между зонами
-  if (y === FENCE_PEN && x < WALL_FARM) return !PEN_GATE_X.includes(x); // забор загона с калиткой
+  if (y === FENCE_PEN && x < WALL_FARM) return !PEN_GATE_X.includes(x); // забор загона с калиткой в три клетки
   if (y === WALL_BACK && x > WALL_HALL) return !BACK_DOOR_X.includes(x); // дверь в служебку
   return false;
 }
@@ -92,8 +92,21 @@ function walkTo(e, tx, ty, arrive, dt) {
 /* ---------- модификаторы ---------- */
 const timeMul = () => Math.pow(0.9, G.upg.fert);
 const priceMul = () => 1 + 0.05 * G.upg.ads;
-const carryCap = () => 8 + 2 * G.upg.bag;
-const playerSpeed = () => 4.7 * Math.pow(1.12, G.upg.boots);
+/* Электрокар: пока игрок «за рулём», он быстрее и берёт больше.
+   Ездить можно только если кар куплен. */
+const hasCart = () => (G.upg.cart || 0) > 0;
+const onCart = () => hasCart() && G.riding;
+/* Сесть можно где угодно — кар «вызывается» как самокат по подписке,
+   иначе на карте 72×40 бегать за ним через полкарты было бы издевательством. */
+function toggleRide() {
+  if (!hasCart()) return false;
+  G.riding = !G.riding;
+  save(true);
+  emit({ t: 'ride', on: G.riding });
+  return true;
+}
+const carryCap = () => 8 + 2 * G.upg.bag + (onCart() ? 4 : 0);
+const playerSpeed = () => 4.7 * Math.pow(1.12, G.upg.boots) * (onCart() ? 1.45 : 1);
 const serveRate = () => 1.1 * Math.pow(1.25, G.upg.register);
 const near = (a, bx, by, r) => Math.hypot(a.x - (bx + .5), a.y - (by + .5)) < r;
 const REACH = 1.2;
@@ -187,12 +200,17 @@ function addXp(v) {
 /* ---------- размещение ----------
    Каждый тип едет в свою зону, а внутри зоны встаёт вплотную к таким же:
    помидоры к помидорам, цеха к цехам. */
-function freeSlots(zone) {
+function freeSlots(zone, sec) {
   const used = new Set(G.buildings.filter(b => DEF[b.t].zone === zone).map(b => b.slot));
-  return SLOTS[zone].map((s, i) => ({ s, i })).filter(o => !used.has(o.i));
+  return SLOTS[zone].map((s, i) => ({ s, i }))
+    .filter(o => !used.has(o.i) && (!sec || o.s.sec === sec));
 }
+/* Постройка встаёт только в свою секцию: помидор — на помидорную грядку,
+   гриль — в горячий цех. Внутри секции выбираем место ближе к таким же,
+   чтобы ряд заполнялся подряд, а не с дырами. */
 function pickSlot(type) {
-  const free = freeSlots(DEF[type].zone);
+  const sec = secOf(type);
+  const free = freeSlots(DEF[type].zone, sec && sec.k);
   if (!free.length) return -1;
   const same = G.buildings.filter(b => b.t === type);
   if (!same.length) return free[0].i;
@@ -204,7 +222,13 @@ function pickSlot(type) {
   }
   return best.i;
 }
-const hasSlot = (type) => freeSlots(DEF[type].zone).length > 0;
+const hasSlot = (type) => freeSlots(DEF[type].zone, (secOf(type) || {}).k).length > 0;
+/* Секция считается профильной, когда занята целиком: все её постройки получают
+   −15% ко времени цикла. Специализация должна быть выгодна, а не только опрятна. */
+const secSlots = (sec) => SLOTS[sec.zone].filter(s => s.sec === sec.k).length;
+const secBuilt = (sec) => G.buildings.filter(b => sec.types.includes(b.t)).length;
+const secFull = (sec) => sec && secBuilt(sec) >= secSlots(sec);
+const isSpec = (b) => secFull(secOf(b.t));
 
 /* ---------- объекты ---------- */
 function newBuilding(t, slot) {
@@ -222,7 +246,7 @@ const shelfCap = (sh) => sh.cap + shelfBonus();
    ускоряет цикл на 18% и раз в два уровня добавляет место под готовый товар. */
 const MAX_LVL = 6;
 const lvlOf = (b) => b.lvl || 1;
-const bTime = (b) => DEF[b.t].time * timeMul() * Math.pow(.82, lvlOf(b) - 1);
+const bTime = (b) => DEF[b.t].time * timeMul() * Math.pow(.82, lvlOf(b) - 1) * (isSpec(b) ? SPEC_BONUS : 1);
 const bCap = (b) => DEF[b.t].cap + Math.floor((lvlOf(b) - 1) / 2);
 const lvlCost = (b) => Math.round(DEF[b.t].cost * 1.6 * Math.pow(2.2, lvlOf(b) - 1));
 
@@ -794,13 +818,45 @@ function planRoute(s, pol) {
   return pick(true) || pick(false);
 }
 
+/* ---------- транспортёр ----------
+   Апгрейд «лента»: пока ты бегаешь по ферме, готовая продукция из цехов сама
+   уезжает в зал. Не заменяет грузчиков — берёт по одной позиции за такт,
+   зато никогда не устаёт и работает через всю карту. */
+function updateBelt(dt) {
+  const lvl = G.upg.belt || 0;
+  if (!lvl) return;
+  G.beltT = (G.beltT || 0) - dt;
+  if (G.beltT > 0) return;
+  G.beltT = Math.max(1.4, 6 * Math.pow(.78, lvl - 1));
+  // берём из самого забитого цеха — он же и простаивает
+  let src = null;
+  for (const b of G.buildings) {
+    if (!DEF[b.t].in || !b.out.length) continue;
+    if (!src || b.out.length > src.out.length) src = b;
+  }
+  if (!src) return;
+  const item = src.out[src.out.length - 1];
+  let dest = null, empty = null;
+  for (const sh of G.shelves) {
+    if (sh.item === item && sh.n < shelfCap(sh)) { dest = sh; break; }
+    if (sh.item === null && !empty) empty = sh;
+  }
+  dest = dest || empty;
+  if (!dest) return;
+  src.out.pop();
+  if (!dest.item) { dest.item = item; dest.n = 0; }
+  dest.n++; dest.age = 0;
+  G.stats.stocked++;
+  emit({ t: 'belt', item, x: src.x + .5, y: src.y + .5, tx: dest.x + .5, ty: dest.y + .5 });
+}
+
 /* ---------- порча товара ----------
    Скоропортящееся не лежит вечно: просроченное уходит в мусор и бьёт по репутации.
    Значит заваливать полки впрок невыгодно, а холодные ряды надо ротировать. */
 function updateSpoilage(dt) {
   for (const sh of G.shelves) {
     if (!sh.item || !sh.n) { sh.age = 0; continue; }
-    const life = ITEMS[sh.item].life;
+    const life = shelfLife(sh.item);
     if (!life) { sh.age = 0; continue; }            // крупа и картошка не портятся
     sh.age += dt;
     if (sh.age < life) continue;
@@ -812,9 +868,11 @@ function updateSpoilage(dt) {
     if (!sh.n) sh.item = null;
   }
 }
+/* Срок годности на полке: холодильные витрины продлевают его. */
+const shelfLife = (item) => ITEMS[item].life * (1 + .6 * (G.upg.fridge || 0));
 /* Свежесть верхней единицы: 1 — только что выложили, 0 — сейчас испортится. */
 const freshness = (sh) => {
-  const life = sh.item ? ITEMS[sh.item].life : 0;
+  const life = sh.item ? shelfLife(sh.item) : 0;
   return life ? Math.max(0, 1 - sh.age / life) : 1;
 };
 
@@ -1169,7 +1227,7 @@ function snapshot() {
     upg: G.upg, quest: G.quest, stats: G.stats,
     level: G.level, xp: G.xp, hot: G.hot, trash: G.trash,
     policy: G.policy, sp: G.staff.map(s => s.policy || null), price: G.price, order: G.order, brand: G.brand,
-    noTake: G.noTake,
+    noTake: G.noTake, riding: G.riding,
     b: G.buildings.map(b => ({ t: b.t, s: b.slot, st: b.stock, o: b.out, l: b.lvl || 1 })),
     sh: G.shelves.map(s => ({ s: s.slot, i: s.item, n: s.n })),
     st: G.staff.map(s => s.role),
@@ -1217,7 +1275,7 @@ function applySave(d) {
       level: d.level || 1, xp: d.xp || 0, hot: d.hot || 'tomato', trash: d.trash || [],
       policy: d.policy || 'value', price: d.price || {}, order: d.order || null,
       brand: Object.assign({ name: 'МОЙ СУПЕРМАРКЕТ', wall: 0, trim: 0, floor: 0 }, d.brand),
-      noTake: d.noTake || {},
+      noTake: d.noTake || {}, riding: !!d.riding,
     });
     // Старые сейвы хранят слоты прежней планировки — раскладываем заново по зонам.
     G.buildings = [];
@@ -1285,6 +1343,7 @@ function simUpdate(dt, input) {
   if (spawnT <= 0) { spawnT = 2.6 + Math.random() * 2.1; spawnCustomer(); }
 
   updateSpoilage(dt);
+  updateBelt(dt);
   updateOrder(dt);
   for (const c of G.customers) updateCustomer(c, dt);
   G.customers = G.customers.filter(c => !c.dead);

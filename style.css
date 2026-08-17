@@ -80,6 +80,8 @@ html,body{height:100%;overflow:hidden;background:#0d1220;color:var(--txt);
   border-radius:14px;font-size:18px;color:var(--txt);cursor:pointer;display:grid;place-items:center;
   box-shadow:0 6px 20px rgba(0,0,0,.28)}
 .icobtn:active{transform:scale(.94)}
+.icobtn.hidden{display:none}
+.icobtn.on{background:linear-gradient(160deg,#41d98a,#1fa464);border-color:transparent;color:#fff}
 
 .card{background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);

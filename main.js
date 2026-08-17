@@ -96,6 +96,14 @@ function handleEvents() {
           SFX.quest();
         }, 900);
         break;
+      case 'belt':
+        // лента увезла позицию: показываем полёт товара через всю карту
+        spawnFlyer(ev.item, V3(ev.x, .9, ev.y), () => V3(ev.tx, .95, ev.ty), 1.4);
+        break;
+      case 'ride':
+        toast(ev.on ? '🛺 Поехали — +45% к скорости и +4 в рюкзак' : '🛑 Сошёл с кара');
+        SFX.ui();
+        break;
       case 'brand':
         applyBrand();
         break;

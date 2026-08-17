@@ -628,6 +628,73 @@ function makeFridgeDoor() {                  // морозильная каме�
   return g;
 }
 
+function makeGreenhouse() {                   // теплица: декор в свободной ячейке огорода
+  const g = new THREE.Group();
+  // стекло держим редким каркасом: глухая коробка сверху читалась как склад
+  const glass = { transparent: true, opacity: .22, roughness: .08 };
+  g.add(at(box(4.2, .18, 2.6, 0xd9d3c4), 0, .09, 0));
+  for (const x of [-2.0, -.7, .7, 2.0]) g.add(at(box(.1, 1.5, .1, 0xe9eef6), x, .9, -1.25));
+  for (const x of [-2.0, -.7, .7, 2.0]) g.add(at(box(.1, 1.5, .1, 0xe9eef6), x, .9, 1.25));
+  for (const z of [-1.25, 1.25]) g.add(at(box(4.2, .1, .1, 0xe9eef6), 0, 1.62, z));
+  const body = box(4.0, 1.4, 2.4, 0xbfe0ff, glass); g.add(at(body, 0, .88, 0));
+  const roof = cyl(.001, 1.55, 4.1, 0xbfe0ff, 3, glass);
+  roof.rotation.z = Math.PI / 2; roof.rotation.y = Math.PI / 2;
+  g.add(at(roof, 0, 1.72, 0));
+  g.add(at(box(4.15, .09, .12, 0xe9eef6), 0, 2.24, 0));       // конёк
+  for (let i = 0; i < 5; i++) {                                // рассада внутри
+    g.add(at(box(.7, .18, .5, 0x8a6238), -1.6 + i * .8, .28, i % 2 ? .55 : -.55));
+    g.add(at(sph(.2, 0x4faf50, { roughness: .85 }), -1.6 + i * .8, .48, i % 2 ? .55 : -.55));
+  }
+  return g;
+}
+function makeBarn() {                         // амбар в загоне
+  const g = new THREE.Group();
+  g.add(at(box(4.6, 2.2, 3.2, 0xb3453c), 0, 1.1, 0));
+  const roof = cyl(.001, 2.3, 4.7, 0x8a4038, 3);
+  roof.rotation.z = Math.PI / 2; roof.rotation.y = Math.PI / 2;
+  g.add(at(roof, 0, 2.75, 0));
+  g.add(at(box(1.5, 1.6, .1, 0x7a3a32), 0, .8, 1.62));
+  for (const x of [-.38, .38]) g.add(at(box(.1, 1.5, .06, 0xe4dcc8), x, .8, 1.69));
+  g.add(at(box(.9, .7, .1, 0xe4dcc8), 0, 2.3, 1.62));
+  return g;
+}
+function makeWell() {                         // колодец
+  const g = new THREE.Group();
+  g.add(at(cyl(.62, .68, .7, 0x8d97a8, 12), 0, .35, 0));
+  g.add(at(cyl(.5, .5, .06, 0x3f4a5c, 12), 0, .68, 0));
+  for (const x of [-.5, .5]) g.add(at(box(.12, 1.3, .12, 0xb98a52), x, 1.0, 0));
+  const roof = cyl(.001, .95, 1.4, 0x8a6238, 4);
+  roof.rotation.y = Math.PI / 4;
+  g.add(at(roof, 0, 1.9, 0));
+  g.add(at(cyl(.06, .06, 1.1, 0x6b4a2c, 8), 0, 1.5, 0));
+  return g;
+}
+function makeTruck(color) {                   // фура поставщика у погрузочного дока
+  const g = new THREE.Group();
+  g.add(at(box(2.1, 1.05, 1.7, color || 0x4f8cff), -1.2, .82, 0));   // кабина
+  g.add(at(box(.9, .5, 1.55, 0x1d2432), -2.1, .62, 0));
+  g.add(at(box(4.6, 1.9, 1.9, 0xe9eef6), 1.2, 1.25, 0));             // кузов
+  g.add(at(box(4.62, .18, 1.92, 0x2b6cff), 1.2, 2.2, 0));
+  g.add(at(box(.1, 1.5, 1.7, 0xc2ccd8), 3.45, 1.2, 0));              // задние двери
+  for (const [x, z] of [[-1.5, -.85], [-1.5, .85], [.6, -.85], [.6, .85], [2.4, -.85], [2.4, .85]]) {
+    const w = cyl(.34, .34, .22, 0x22262f, 14); w.rotation.z = Math.PI / 2;
+    g.add(at(w, x, .34, z));
+  }
+  return g;
+}
+function makeEV() {                           // электрокар игрока
+  const g = new THREE.Group();
+  g.add(at(box(.9, .18, 1.35, 0xffd166), 0, .26, 0));
+  g.add(at(box(.82, .1, 1.2, 0x2f3a4d), 0, .36, 0));
+  for (const [x, z] of [[-.42, -.48], [.42, -.48], [-.42, .48], [.42, .48]]) {
+    const w = cyl(.17, .17, .12, 0x22262f, 12); w.rotation.z = Math.PI / 2;
+    g.add(at(w, x, .17, z));
+  }
+  g.add(at(cyl(.035, .035, .62, 0x9aa5b5, 8), 0, .62, -.5));
+  const bar = box(.42, .07, .07, 0x2f3a4d); g.add(at(bar, 0, .92, -.5));
+  g.add(at(box(.5, .16, .06, 0xffe8a3), 0, .5, -.66));   // фара
+  return g;
+}
 function makeBench() {                       // скамейка
   const g = new THREE.Group();
   for (const x of [-.55, .55]) {
